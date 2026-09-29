@@ -15,9 +15,13 @@
     }
     header h1 { font-size: 1.5rem; }
     nav a {
-      color: white;
+     
+     display: inline-block;
+      background: white;
+      color: #7266df;
+      padding: 12px 28px;
+      border-radius: 8px;
       text-decoration: none;
-      margin-left: 20px;
       font-weight: bold;
     }
     .logo {
