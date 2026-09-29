@@ -15,8 +15,7 @@
     }
     header h1 { font-size: 1.5rem; }
     nav a {
-     
-     display: inline-block;
+      display: inline-block;
       background: white;
       color: #7266df;
       padding: 12px 28px;
@@ -41,15 +40,6 @@
         margin: 0 auto 25px; 
         color: #555; 
     }
-    .btn {
-      display: inline-block;
-      background: #7266df;
-      color: white;
-      padding: 12px 28px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: bold;
-    }
     .info {
       padding: 50px 5%;
       max-width: 800px;
@@ -57,5 +47,14 @@
     }
     .info h3 { 
         margin-bottom: 10px; 
+    }
+    .boton {
+      display: inline-block;
+      background: #7266df;
+      color: white;
+      padding: 12px 28px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
     }
  
