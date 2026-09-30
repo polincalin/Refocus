@@ -1,55 +1,216 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title> ReFocus </title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-      <header>
-         <a href="index.html">
-    <img src="imagenes/logo.png" class="logo">
-  </a>
-    <nav>
-      <a href="registro.html">Registro</a>
-      <a href="login.html">Iniciar sesión</a>
+<html lang="es">
+
+
+<!--HEAD -->
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ReFocus</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+
+<!--BODY -->
+
+<body>
+
+  <!--HEADER -->
+  <header>
+    <a href="index.html">
+      <img src="imagenes/logo.png" class="logo" alt="Logo ReFocus">
+    </a>
+
+
+    <nav class="menu">
+      <a href="index.html">Inicio</a>
+      <a href="#funciona">Cómo funciona</a>
+      <a href="#caracteristicas">Características</a>
+      <a href="#beneficios">Beneficios</a>
     </nav>
-     </header>
-     
-     <div class="principal">
-    <h2>Mantén el foco en tus sesiones de estudio</h2>
-    <p>ReFocus es un wearable IoT que te ayuda a identificar distracciones durante tus sesiones de estudio y trabajo.</p>
-    <a class="boton" href="#info">Conoce más</a>
-    <a class="boton" href="#Bene">Beneficios</a>
-    <a class="boton" href="#Carac">Características</a>
-     </div>
- 
-     <div id="info" class="info">
-    <h3>¿Qué hace ReFocus?</h3>
-    <p>Registra tu movimiento, tu conductancia de la piel y tu ritmo cardiaco durante la sesión, y te avisa con una vibración cuando detecta una posible distracción.</p>
-     </div>
 
-        <div id="Bene" class="info">   
-    <h3>Beneficios de ReFocus</h3>
-    <ul>
-      <li>Mejora tu concentración y productividad.</li>
-      <li>Te ayuda a identificar tus distracciones y hábitos de estudio.</li>
-      <li>Te permite llevar un registro de tus sesiones de estudio y trabajo.</li>
-    </ul>
-     </div>
-     
-     
-        <div id="Carac" class="info">
-    <h3>Características de ReFocus</h3>
-    <ul>
-      <li>Sensor de movimiento.</li>
-      <li>Sensor de conductancia de la piel.</li>
-      <li>Sensor de ritmo cardiaco.</li>
-      <li>Vibración para avisar de distracciones.</li>
-    </ul>
-        </div>  
+    <div class="cuenta">
+      <a href="registro.html" class="registro">Registro</a>
+      <a href="login.html" class="login">Iniciar sesión</a>
+    </div>
 
 
- 
+  </header>
+
+  <main>
+
+    <!-- INICIO / HERO -->
+    <section class="principal">
+
+      <div class="principal-texto">
+
+        <p class="etiqueta">
+          TU CONCENTRACIÓN, NUESTRO PROPÓSITO
+        </p>
+
+        <h1>
+          Mantén el foco en tus
+          <span>sesiones de estudio</span>
+        </h1>
+
+        <p class="descripcion">
+          Un wearable IoT que te ayuda a reconocer distracciones
+          y volver a concentrarte.
+        </p>
+
+        <div class="botones-principal">
+
+          <a class="boton boton-principal" href="#info">
+            Conoce ReFocus
+          </a>
+
+          <a class="boton boton-secundario" href="#funciona">
+            Cómo funciona
+          </a>
+
+        </div>
+
+      </div>
+
+
+      <div class="principal-imagen">
+
+        <img src="imagenes/logo.png" class="imagen-principal" alt="ReFocus">
+
+      </div>
+
+    </section>
+
+
+    <!-- ¿QUÉ HACE REFOCUS? -->
+    <section id="info" class="seccion">
+
+      <div class="info-texto">
+        <div class="titulo-seccion">
+          <h2>Conoce ReFocus</h2>
+        </div>
+
+        <p class="texto-seccion">
+          ReFocus monitorea señales durante tu sesión,
+          identifica posibles distracciones y te avisa
+          mediante una vibración.
+        </p>
+      </div>
+
+      <img src="imagenes/estudiante.png" class="foto-estudiante"
+        alt="Estudiante trabajando con su computador y cuaderno">
+
+    </section>
+
+    <!-- CÓMO FUNCIONA -->
+    <section id="funciona" class="seccion">
+
+      <div class="titulo-seccion">
+        <p class="etiqueta">PASO A PASO</p>
+        <h2>¿Cómo funciona?</h2>
+      </div>
+
+      <div class="pasos">
+
+        <div class="paso">
+          <h3>1. Monitorea</h3>
+          <p>
+            Registra movimiento y señales fisiológicas
+            durante la sesión.
+          </p>
+        </div>
+
+        <div class="paso">
+          <h3>2. Detecta</h3>
+          <p>
+            Identifica patrones asociados con una posible
+            pérdida de enfoque.
+          </p>
+        </div>
+
+        <div class="paso">
+          <h3>3. Te avisa</h3>
+          <p>
+            Genera una vibración para ayudarte a retomar
+            la concentración.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- CARACTERÍSTICAS -->
+    <section id="caracteristicas" class="seccion">
+
+      <div class="titulo-seccion">
+        <p class="etiqueta">EL SISTEMA</p>
+        <h2>Características</h2>
+      </div>
+
+      <div class="caracteristicas">
+
+        <div class="caracteristica">
+          <h3>Movimiento</h3>
+          <p>Sensor para registrar actividad y movimiento.</p>
+        </div>
+
+        <div class="caracteristica">
+          <h3>Conductancia de la piel</h3>
+          <p>Registro de cambios en la conductancia de la piel.</p>
+        </div>
+
+        <div class="caracteristica">
+          <h3>Ritmo cardiaco</h3>
+          <p>Monitoreo de frecuencia cardiaca durante la sesión.</p>
+        </div>
+
+        <div class="caracteristica">
+          <h3>Vibración</h3>
+          <p>Alerta discreta ante una posible distracción.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- BENEFICIOS -->
+    <section id="beneficios" class="seccion">
+
+      <div class="titulo-seccion">
+        <p class="etiqueta">BENEFICIOS DE REFOCUS</p>
+        <h2>Tu aliado para estudiar mejor</h2>
+      </div>
+
+      <div class="beneficios">
+
+        <div class="beneficio">
+          <h3>Mejora tu concentración</h3>
+          <p>Mantén el foco por más tiempo.</p>
+        </div>
+
+        <div class="beneficio">
+          <h3>Conoce tus hábitos</h3>
+          <p>Identifica patrones durante tus sesiones.</p>
+        </div>
+
+        <div class="beneficio">
+          <h3>Alcanza tus metas</h3>
+          <p>Haz seguimiento a tu progreso.</p>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
 </body>
+
 </html>

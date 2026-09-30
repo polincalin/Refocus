@@ -1,61 +1,493 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: sans-serif;
-      color: #000000;
-      line-height: 1.5;
-      scroll-behavior: smooth;
-    }
-    header {
-      background: #7266df;
-      color: white;
-      padding: 15px 5%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    header h1 { font-size: 1.5rem; }
-    nav a {
-      display: inline-block;
-      background: white;
-      color: #7266df;
-      padding: 12px 28px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: bold;
-    }
-    .logo {
-      height: 100px;
-    }
-    .principal {
-      text-align: center;
-      padding: 80px 5%;
-      background: #cac6f4;
-    }
-    .principal h2 { 
-        font-size: 2rem; 
-      margin-bottom: 15px; 
-    }
-    .principal p { 
-        max-width: 500px; 
-        margin: 0 auto 25px; 
-        color: #555; 
-    }
-    .info {
-      padding: 50px 5%;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .info h3 { 
-        margin-bottom: 10px; 
-    }
-    .boton {
-      display: inline-block;
-      background: #7266df;
-      color: white;
-      padding: 12px 28px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: bold;
-    }
- 
+/* Estilos generales: fuente, colores y espacios. */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', Arial, sans-serif;
+  color: #202044;
+  background: #fff;
+  line-height: 1.65;
+}
+
+a {
+
+  color: inherit;
+
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+a:focus {
+  outline: 2px solid #6755ce;
+  outline-offset: 5px;
+}
+
+/* Flex coloca el logo, el menú y los botones en una fila. */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 8%;
+  background: #fff;
+}
+
+.logo {
+  display: block;
+  height: 72px;
+  width: auto;
+}
+
+.menu, .cuenta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.menu {
+  gap: 25px;
+}
+.cuenta {
+  gap: 12px;
+}
+.menu a, .cuenta a {
+  text-decoration: none;
+}
+.menu a {
+  font-size: 14px;
+  font-weight: 400;
+}
+.menu a:hover {
+  color: #6755ce;
+}
+.cuenta a {
+  padding: 10px 15px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.registro {
+  color: #6755ce;
+}
+.registro:hover {
+  text-decoration: underline;
+}
+.login {
+  color: #fff;
+  background: #6755ce;
+}
+.login:hover {
+  background: #5745b7;
+}
+
+/* Portada: texto y el logo existente */
+.principal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+  padding: 60px 8%;
+  background: #f2effb;
+}
+.principal-texto {
+  width: 60%;
+}
+/* Oculta los textos pequeños que estaban encima de los títulos. */
+.etiqueta {
+  display: none;
+}
+.principal h1 {
+  color: #202044;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin-bottom: 22px;
+}
+.principal h1 span {
+  display: block;
+  color: inherit;
+}
+.descripcion {
+  max-width: 540px;
+  margin-bottom: 26px;
+  color: #626174;
+  font-size: 17px;
+  line-height: 1.8;
+}
+.botones-principal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.boton {
+  display: inline-block;
+  padding: 12px 20px;
+  border: 1px solid #6755ce;
+  border-radius: 7px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.boton-principal {
+  background: #6755ce;
+  color: #fff;
+}
+.boton-principal:hover {
+  background: #5745b7;
+}
+.boton-secundario {
+  background: transparent;
+  color: #6755ce;
+}
+.boton-secundario:hover {
+  background: #fff;
+}
+.principal-imagen {
+  width: 35%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.imagen-principal {
+  display: block;
+  width: 350px;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Secciones: fondos planos y texto */
+.seccion {
+  padding: 48px 8%;
+  background: #fff;
+}
+
+.titulo-seccion {
+
+  margin-bottom: 20px;
+
+}
+.titulo-seccion h2 {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #202044;
+}
+.texto-seccion {
+  max-width: 860px;
+  color: #626174;
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+/* Cómo funciona: lectura continua, sin tarjetas */
+.pasos {
+  display: block;
+  max-width: 900px;
+  margin-top: 22px;
+}
+.paso {
+  margin-bottom: 14px;
+}
+
+.paso h3, .paso p {
+
+  display: inline;
+
+  font-size: 16px;
+
+}
+.paso h3 {
+  color: #202044;
+  font-weight: 500;
+  margin-right: 8px;
+}
+.paso p {
+  color: #626174;
+  line-height: 1.85;
+}
+
+/* Grid divide este espacio en dos columnas iguales. */
+.caracteristicas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 26px 70px;
+  margin-top: 24px;
+}
+.caracteristica h3, .beneficio h3 {
+  color: #202044;
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.caracteristica p, .beneficio p {
+  color: #626174;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+/* Tres columnas de texto, sin cajas. */
+.beneficios {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 30px;
+  margin-top: 24px;
+}
+.beneficio {
+  text-align: left;
+}
+
+/* Estos cambios se aplican cuando la pantalla mide 1050px o menos. */
+@media (max-width: 1050px) {
+  header {
+    flex-wrap: wrap;
+    gap: 12px 24px;
+  }
+  .menu {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 12px 24px;
+    padding-bottom: 8px;
+  }
+  .principal {
+    gap: 28px;
+    padding: 48px 7%;
+  }
+
+  .principal h1 {
+
+    font-size: 36px;
+
+  }
+  .seccion {
+    padding: 40px 7%;
+  }
+  .caracteristicas {
+    column-gap: 36px;
+  }
+}
+
+/* En celular, el contenido se coloca en una sola columna. */
+@media (max-width: 650px) {
+  header {
+    padding: 10px 6%;
+  }
+  .logo {
+    height: 60px;
+  }
+  .cuenta {
+    gap: 4px;
+  }
+  .cuenta a {
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+  .menu {
+    gap: 10px 18px;
+  }
+  .menu a {
+    font-size: 12px;
+  }
+  .principal {
+    flex-direction: column;
+    padding: 36px 6%;
+    gap: 20px;
+  }
+  .principal-texto {
+    width: 100%;
+  }
+  .principal h1 {
+    font-size: 32px;
+    letter-spacing: -0.6px;
+  }
+  .descripcion {
+    font-size: 16px;
+  }
+  .boton {
+    padding: 11px 15px;
+    font-size: 13px;
+  }
+  .principal-imagen {
+    width: 220px;
+  }
+  .seccion {
+    padding: 34px 6%;
+  }
+  .titulo-seccion h2 {
+    font-size: 26px;
+  }
+  .caracteristicas, .beneficios {
+    grid-template-columns: 1fr;
+    gap: 22px;
+
+
+  }
+}
+
+  /* Segunda línea del título principal */
+.principal h1 span {
+  color: #0e063e;
+}
+
+/* Títulos de características y beneficios */
+.caracteristica h3,
+.beneficio h3 {
+  color: #0e063e;
+}
+/* Títulos en azul oscuro */
+.titulo-seccion h2 {
+  color: #1D427A;
+}
+
+.paso h3 {
+  color: #0e063e;
+}
+
+/* Texto a la izquierda e imagen a la derecha */
+#info {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.info-texto {
+  width: 55%;
+}
+
+.foto-estudiante {
+  width: 40%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* En celular, la imagen queda debajo del texto */
+@media (max-width: 650px) {
+  #info {
+    flex-direction: column;
+  }
+
+  .info-texto {
+    width: 100%;
+  }
+
+  .foto-estudiante {
+    width: 100%;
+  }
+}
+
+/* Secciones con fondo lila suave */
+#info,
+#caracteristicas {
+  background-color: #f0edf9;
+}
+
+/* Secciones con fondo blanco */
+#funciona,
+#beneficios {
+  background-color: #fefdfe;
+}
+
+ /* Enlace para regresar */
+.volver-inicio {
+  color: #6755ce;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* Foto de fondo */
+.fondo-login {
+  background-image: url("imagenes/estudiante.png");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Fondo lila transparente y formulario centrado */
+.capa-login {
+  background-color: rgba(240, 234, 252, 0.65);
+  min-height: 85vh;
+  padding: 40px 20px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Cuadro blanco */
+.caja-login {
+  background-color: white;
+  width: 400px;
+  max-width: 100%;
+  padding: 30px;
+  border: 1px solid #ddd5ef;
+  border-radius: 8px;
+}
+
+.caja-login h1 {
+  color: #1d427a;
+  font-size: 26px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+/* Nombre de cada campo */
+.caja-login label {
+  display: block;
+  color: #1d427a;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+/* Espacios para escribir */
+.caja-login input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 22px;
+  border: 1px solid #ccc5df;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #202044;
+}
+
+/* Resalta el campo al seleccionarlo */
+.caja-login input:focus {
+  outline: 2px solid #6755ce;
+  outline-offset: 2px;
+}
+
+/* Botón morado */
+.caja-login button {
+  width: 100%;
+  padding: 12px;
+  background-color: #6755ce;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.caja-login button:hover {
+  background-color: #5745b7;
+}
+
+/* Enlace al registro */
+.caja-login p {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.caja-login p a {
+  color: #6755ce;
+  text-decoration: none;
+}
