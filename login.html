@@ -16,17 +16,13 @@
     <a href="index.html" class="volver-inicio">Volver al inicio</a>
   </header>
 
-  <!-- Foto de fondo -->
   <main class="fondo-login">
-
-    <!-- Capa lila sobre la foto -->
     <div class="capa-login">
 
-      <!-- Cuadro blanco del formulario -->
       <div class="caja-login">
         <h1>Iniciar sesión</h1>
 
-        <form action="login.php" method="post">
+        <form id="form-login">
           <label for="email">Correo electrónico</label>
           <input
             type="email"
@@ -58,5 +54,24 @@
 
     </div>
   </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="firebase-conf.json"></script>
+ 
+  <script>
+    const formLogin = document.getElementById("form-login");
+ 
+    formLogin.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+ 
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+ 
+      await auth.signInWithEmailAndPassword(email, password);
+      window.location.href = "dashboard.html";
+    });
+  </script>
+
 </body>
 </html>

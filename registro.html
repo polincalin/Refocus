@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro | ReFocus</title>
+  <title>RegistroReFocus</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -16,15 +16,13 @@
     <a href="index.html" class="volver-inicio">Volver al inicio</a>
   </header>
 
-  <!-- Foto de fondo -->
   <main class="fondo-login">
     <div class="capa-login">
 
-      <!-- Formulario de registro -->
       <div class="caja-login">
         <h1>Crear cuenta</h1>
 
-        <form action="registro.php" method="post">
+        <form id="form-registro">
           <label for="nombre">Nombre</label>
           <input
             type="text"
@@ -66,5 +64,26 @@
 
     </div>
   </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="firebase-conf.json"></script>
+ 
+  <script>
+    const formRegistro = document.getElementById("form-registro");
+ 
+    formRegistro.addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+ 
+      const nombre = document.getElementById("nombre").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+ 
+      const credencial = await auth.createUserWithEmailAndPassword(email, password);
+      await credencial.user.updateProfile({ displayName: nombre });
+      window.location.href = "dashboard.html";
+    });
+  </script>
+
 </body>
 </html>

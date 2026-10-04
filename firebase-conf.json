@@ -1,0 +1,12 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyC5nfHxoOCbHnFAv1o_HCfhJO03VicpRkk",
+  authDomain: "refocus-fac42.firebaseapp.com",
+  projectId: "refocus-fac42",
+  storageBucket: "refocus-fac42.firebasestorage.app",
+  messagingSenderId: "1024014231838",
+  appId: "1:1024014231838:web:41ab72ed3ee3b2255d410f"
+};
+ 
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+ 
