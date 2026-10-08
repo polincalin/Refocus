@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-/* Estilos generales: fuente, colores y espacios. */
 * {
   margin: 0;
   padding: 0;
@@ -28,7 +27,6 @@ a:focus {
   outline-offset: 5px;
 }
 
-/* Flex coloca el logo, el menú y los botones en una fila. */
 header {
   display: flex;
   align-items: center;
@@ -85,7 +83,6 @@ header {
   background: #5745b7;
 }
 
-/* Portada: texto y el logo existente */
 .principal {
   display: flex;
   align-items: center;
@@ -97,7 +94,7 @@ header {
 .principal-texto {
   width: 60%;
 }
-/* Oculta los textos pequeños que estaban encima de los títulos. */
+
 .etiqueta {
   display: none;
 }
@@ -161,7 +158,6 @@ header {
   height: auto;
 }
 
-/* Secciones: fondos planos y texto */
 .seccion {
   padding: 48px 8%;
   background: #fff;
@@ -490,4 +486,11 @@ header {
 .caja-login p a {
   color: #6755ce;
   text-decoration: none;
+}
+
+iframe {
+    width: 100vw;
+    height: 100vh;
+    border: none;
+    display: block;
 }
