@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard_</title>
   <link rel="stylesheet" href="style.css">
-
 </head>
 
 <body>
@@ -13,10 +12,10 @@
     <a href="index.html">
       <img src="imagenes/logo.png" class="logo" alt="Logo ReFocus">
     </a>
- 
+
     <button id="btn-logout">Cerrar sesión</button>
   </header>
- 
+
   <main>
     <h1 id="saludo">Bienvenido</h1>
 
@@ -24,16 +23,25 @@
       <h2>Control del wearable</h2>
       <p>Estado: <strong id="estado">Conectando...</strong></p>
 
-      <button id="btn-calibrar">Calibrar</button>
-      <button id="btn-iniciar">Iniciar sesión de estudio</button>
-      <button id="btn-finalizar">Finalizar sesión</button>
+      <button id="btn-calibrar" disabled>Calibrar</button>
+      <button id="btn-iniciar" disabled>Iniciar sesión de estudio</button>
+      <button id="btn-finalizar" disabled>Finalizar sesión</button>
+
+      <p id="ayuda">
+        Para calibrar, deja el sensor quieto y plano sobre una mesa.
+        Al iniciar la sesión, quédate en reposo unos 30 segundos mientras se mide tu línea base.
+      </p>
     </section>
- 
+
     <iframe
       src="https://thingsboard.cloud/dashboard/28028f60-be7a-11f1-a6e5-11e8fa25cdfc?publicId=755de5d0-c31a-11f1-b930-ad60e0953111"
+      width="100%"
+      height="800"
+      style="border:none;"
+      title="Monitoreo en tiempo real"
     ></iframe>
   </main>
- 
+
   <!-- SDK de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -41,11 +49,11 @@
 
   <!-- Cliente MQTT para el navegador (se conecta al broker por WebSocket) -->
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
- 
+
   <script>
     const saludo = document.getElementById("saludo");
     const btnLogout = document.getElementById("btn-logout");
- 
+
     auth.onAuthStateChanged((usuario) => {
       if (usuario) {
         saludo.textContent = "Bienvenido, " + usuario.displayName;
@@ -53,7 +61,7 @@
         window.location.href = "login.html";
       }
     });
- 
+
     btnLogout.addEventListener("click", async () => {
       await auth.signOut();
       window.location.href = "login.html";
@@ -61,35 +69,78 @@
 
     // ---------- Control del wearable por MQTT ----------
     const MQTT_URL = "wss://ab111316.ala.us-east-1.emqxsl.com:8084/mqtt";
+    const MQTT_USER = "web";
+    const MQTT_PASS = "web";
+
+    // Estos dos tópicos deben ser IGUALES a los del script de la Raspberry Pi
     const TOPIC_COMANDOS = "comandos";   // la página publica aquí
     const TOPIC_ESTADO = "estado";       // la Raspberry responde aquí
 
     const textoEstado = document.getElementById("estado");
+    const btnCalibrar = document.getElementById("btn-calibrar");
+    const btnIniciar = document.getElementById("btn-iniciar");
+    const btnFinalizar = document.getElementById("btn-finalizar");
+
+    let conectado = false;
+    let estadoActual = "";
+
+    // Activa o desactiva los botones según lo que esté haciendo el wearable
+    function actualizarBotones() {
+      const desconectado = !conectado || estadoActual === "Wearable desconectado";
+      const ocupado = estadoActual.startsWith("Calibrando") || estadoActual.startsWith("Preparando");
+      const enSesion = estadoActual === "Sesión en curso";
+
+      btnCalibrar.disabled = desconectado || ocupado || enSesion;
+      btnIniciar.disabled = desconectado || ocupado || enSesion;
+      btnFinalizar.disabled = desconectado || !enSesion;
+    }
 
     const cliente = mqtt.connect(MQTT_URL, {
-      username: "web",
-      password: "web"
+      username: MQTT_USER,
+      password: MQTT_PASS,
+      reconnectPeriod: 3000
     });
 
     cliente.on("connect", () => {
+      conectado = true;
       cliente.subscribe(TOPIC_ESTADO);
-      textoEstado.textContent = "Conectado, esperando al wearable...";
+      if (!estadoActual) {
+        textoEstado.textContent = "Conectado, esperando al wearable...";
+      }
+      actualizarBotones();
+    });
+
+    cliente.on("close", () => {
+      conectado = false;
+      textoEstado.textContent = "Sin conexión con el servidor. Reintentando...";
+      actualizarBotones();
+    });
+
+    cliente.on("error", (err) => {
+      console.error("Error MQTT:", err.message);
     });
 
     // Cuando la Raspberry publica su estado, se muestra en pantalla
     cliente.on("message", (topic, mensaje) => {
-      const datos = JSON.parse(mensaje.toString());
-      textoEstado.textContent = datos.estado;
+      try {
+        const datos = JSON.parse(mensaje.toString());
+        estadoActual = datos.estado || "";
+        textoEstado.textContent = estadoActual;
+        actualizarBotones();
+      } catch (e) {
+        console.error("Mensaje de estado no válido:", mensaje.toString());
+      }
     });
 
     function enviarComando(comando) {
+      if (!conectado) return;
       cliente.publish(TOPIC_COMANDOS, JSON.stringify({ comando: comando }));
     }
 
-    document.getElementById("btn-calibrar").addEventListener("click", () => enviarComando("calibrar"));
-    document.getElementById("btn-iniciar").addEventListener("click", () => enviarComando("iniciar"));
-    document.getElementById("btn-finalizar").addEventListener("click", () => enviarComando("finalizar"));
+    btnCalibrar.addEventListener("click", () => enviarComando("calibrar"));
+    btnIniciar.addEventListener("click", () => enviarComando("iniciar"));
+    btnFinalizar.addEventListener("click", () => enviarComando("finalizar"));
   </script>
- 
+
 </body>
 </html>
