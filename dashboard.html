@@ -19,6 +19,15 @@
  
   <main>
     <h1 id="saludo">Bienvenido</h1>
+
+    <section id="panel-control">
+      <h2>Control del wearable</h2>
+      <p>Estado: <strong id="estado">Conectando...</strong></p>
+
+      <button id="btn-calibrar">Calibrar</button>
+      <button id="btn-iniciar">Iniciar sesión de estudio</button>
+      <button id="btn-finalizar">Finalizar sesión</button>
+    </section>
  
     <iframe
       src="https://thingsboard.cloud/dashboard/28028f60-be7a-11f1-a6e5-11e8fa25cdfc?publicId=755de5d0-c31a-11f1-b930-ad60e0953111"
@@ -29,6 +38,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="firebase-config.js"></script>
+
+  <!-- Cliente MQTT para el navegador (se conecta al broker por WebSocket) -->
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
  
   <script>
     const saludo = document.getElementById("saludo");
@@ -46,6 +58,37 @@
       await auth.signOut();
       window.location.href = "login.html";
     });
+
+    // ---------- Control del wearable por MQTT ----------
+    const MQTT_URL = "wss://ab111316.ala.us-east-1.emqxsl.com:8084/mqtt";
+    const TOPIC_COMANDOS = "comandos";   // la página publica aquí
+    const TOPIC_ESTADO = "estado";       // la Raspberry responde aquí
+
+    const textoEstado = document.getElementById("estado");
+
+    const cliente = mqtt.connect(MQTT_URL, {
+      username: "web",
+      password: "web"
+    });
+
+    cliente.on("connect", () => {
+      cliente.subscribe(TOPIC_ESTADO);
+      textoEstado.textContent = "Conectado, esperando al wearable...";
+    });
+
+    // Cuando la Raspberry publica su estado, se muestra en pantalla
+    cliente.on("message", (topic, mensaje) => {
+      const datos = JSON.parse(mensaje.toString());
+      textoEstado.textContent = datos.estado;
+    });
+
+    function enviarComando(comando) {
+      cliente.publish(TOPIC_COMANDOS, JSON.stringify({ comando: comando }));
+    }
+
+    document.getElementById("btn-calibrar").addEventListener("click", () => enviarComando("calibrar"));
+    document.getElementById("btn-iniciar").addEventListener("click", () => enviarComando("iniciar"));
+    document.getElementById("btn-finalizar").addEventListener("click", () => enviarComando("finalizar"));
   </script>
  
 </body>

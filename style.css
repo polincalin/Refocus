@@ -181,7 +181,6 @@ header {
   line-height: 1.85;
 }
 
-/* Cómo funciona: lectura continua, sin tarjetas */
 .pasos {
   display: block;
   max-width: 900px;
@@ -208,7 +207,6 @@ header {
   line-height: 1.85;
 }
 
-/* Grid divide este espacio en dos columnas iguales. */
 .caracteristicas {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -227,7 +225,6 @@ header {
   line-height: 1.8;
 }
 
-/* Tres columnas de texto, sin cajas. */
 .beneficios {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -238,7 +235,6 @@ header {
   text-align: left;
 }
 
-/* Estos cambios se aplican cuando la pantalla mide 1050px o menos. */
 @media (max-width: 1050px) {
   header {
     flex-wrap: wrap;
@@ -269,7 +265,6 @@ header {
   }
 }
 
-/* En celular, el contenido se coloca en una sola columna. */
 @media (max-width: 650px) {
   header {
     padding: 10px 6%;
@@ -493,4 +488,98 @@ iframe {
     height: 100vh;
     border: none;
     display: block;
+}
+
+#saludo {
+  padding: 30px 8% 10px;
+  color: #1d427a;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+/* Cuadro del panel de control */
+#panel-control {
+  margin: 10px 8% 30px;
+  padding: 24px;
+  background-color: #f0edf9;
+  border: 1px solid #ddd5ef;
+  border-radius: 8px;
+}
+
+#panel-control h2 {
+  margin-bottom: 8px;
+  color: #1d427a;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+#panel-control p {
+  margin-bottom: 18px;
+  color: #626174;
+  font-size: 14px;
+}
+
+#estado {
+  color: #202044;
+}
+
+/* Botones del panel (morados) */
+#panel-control button {
+  margin: 0 10px 10px 0;
+  padding: 12px 20px;
+  background-color: #6755ce;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+#panel-control button:hover {
+  background-color: #5745b7;
+}
+
+/* Finalizar sesión: botón secundario (borde morado) */
+#panel-control #btn-finalizar {
+  background-color: transparent;
+  color: #6755ce;
+  border: 1px solid #6755ce;
+}
+
+#panel-control #btn-finalizar:hover {
+  background-color: #fff;
+}
+
+/* Botón de cerrar sesión (arriba a la derecha) */
+#btn-logout {
+  padding: 10px 15px;
+  background-color: #6755ce;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+#btn-logout:hover {
+  background-color: #5745b7;
+}
+
+/* Resalta el botón al navegar con teclado */
+#panel-control button:focus-visible,
+#btn-logout:focus-visible {
+  outline: 2px solid #6755ce;
+  outline-offset: 2px;
+}
+
+/* En celular, los botones ocupan todo el ancho */
+@media (max-width: 650px) {
+  #panel-control button {
+    width: 100%;
+    margin-right: 0;
+  }
 }
