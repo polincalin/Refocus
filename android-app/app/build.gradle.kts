@@ -50,6 +50,12 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/io.netty.versions.properties"
+        }
+    }
 }
 
 dependencies {
@@ -67,6 +73,8 @@ dependencies {
     implementation(
         "com.google.firebase:firebase-auth"
     )
+
+    implementation("com.google.firebase:firebase-firestore")
 
 
     // -----------------------------
@@ -105,6 +113,7 @@ dependencies {
         libs.androidx.lifecycle.runtime.ktx
     )
 
+    implementation("com.hivemq:hivemq-mqtt-client:1.4.0")
 
     // -----------------------------
     // TESTS
