@@ -45,18 +45,28 @@
   <!-- SDK de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="firebase-conf.json"></script>
 
-  <!-- Cliente MQTT para el navegador (se conecta al broker por WebSocket) -->
+  <!-- Cliente MQTT para el navegador -->
   <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
 
   <script>
     const saludo = document.getElementById("saludo");
     const btnLogout = document.getElementById("btn-logout");
 
-    auth.onAuthStateChanged((usuario) => {
+    const db = firebase.firestore();
+
+    let usuarioActual = null;
+    let sesionActivaRef = null;
+    let inicioSesionMs = null;
+    let inicioDesdeWeb = false;
+
+    auth.onAuthStateChanged(async (usuario) => {
       if (usuario) {
-        saludo.textContent = "Bienvenido, " + usuario.displayName;
+        usuarioActual = usuario;
+        saludo.textContent = "Bienvenido, " + (usuario.displayName || usuario.email);
+        await buscarSesionActiva();
       } else {
         window.location.href = "login.html";
       }
@@ -67,14 +77,97 @@
       window.location.href = "login.html";
     });
 
+    // ---------- Sesiones del usuario en Firestore ----------
+
+    async function buscarSesionActiva() {
+      if (!usuarioActual) return;
+
+      const snapshot = await db
+        .collection("usuarios")
+        .doc(usuarioActual.uid)
+        .collection("sesiones")
+        .where("estado", "==", "activa")
+        .limit(1)
+        .get();
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        sesionActivaRef = doc.ref;
+        inicioSesionMs = doc.data().startTs;
+      }
+    }
+
+    async function crearSesionUsuario() {
+      if (!usuarioActual) return;
+
+      await buscarSesionActiva();
+
+      // Evita crear dos sesiones activas
+      if (sesionActivaRef) return;
+
+      inicioSesionMs = Date.now();
+
+      sesionActivaRef = db
+        .collection("usuarios")
+        .doc(usuarioActual.uid)
+        .collection("sesiones")
+        .doc();
+
+      await sesionActivaRef.set({
+        uid: usuarioActual.uid,
+        startTs: inicioSesionMs,
+        endTs: null,
+        duracionSegundos: 0,
+        estado: "activa",
+        origen: "web",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      console.log("Sesión creada en Firestore");
+    }
+
+    async function finalizarSesionUsuario() {
+      if (!usuarioActual) return;
+
+      // Por si la sesión fue iniciada desde Android
+      if (!sesionActivaRef) {
+        await buscarSesionActiva();
+      }
+
+      if (!sesionActivaRef) return;
+
+      const endTs = Date.now();
+
+      if (!inicioSesionMs) {
+        const doc = await sesionActivaRef.get();
+        inicioSesionMs = doc.data().startTs;
+      }
+
+      const duracionSegundos = Math.round(
+        (endTs - inicioSesionMs) / 1000
+      );
+
+      await sesionActivaRef.update({
+        endTs: endTs,
+        duracionSegundos: duracionSegundos,
+        estado: "finalizada",
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      sesionActivaRef = null;
+      inicioSesionMs = null;
+
+      console.log("Sesión finalizada en Firestore");
+    }
+
     // ---------- Control del wearable por MQTT ----------
+
     const MQTT_URL = "wss://ab111316.ala.us-east-1.emqxsl.com:8084/mqtt";
     const MQTT_USER = "web";
     const MQTT_PASS = "web";
 
-    // Estos dos tópicos deben ser IGUALES a los del script de la Raspberry Pi
-    const TOPIC_COMANDOS = "comandos";   // la página publica aquí
-    const TOPIC_ESTADO = "estado";       // la Raspberry responde aquí
+    const TOPIC_COMANDOS = "comandos";
+    const TOPIC_ESTADO = "estado";
 
     const textoEstado = document.getElementById("estado");
     const btnCalibrar = document.getElementById("btn-calibrar");
@@ -84,11 +177,16 @@
     let conectado = false;
     let estadoActual = "";
 
-    // Activa o desactiva los botones según lo que esté haciendo el wearable
     function actualizarBotones() {
-      const desconectado = !conectado || estadoActual === "Wearable desconectado";
-      const ocupado = estadoActual.startsWith("Calibrando") || estadoActual.startsWith("Preparando");
-      const enSesion = estadoActual === "Sesión en curso";
+      const desconectado =
+        !conectado || estadoActual === "Wearable desconectado";
+
+      const ocupado =
+        estadoActual.startsWith("Calibrando") ||
+        estadoActual.startsWith("Preparando");
+
+      const enSesion =
+        estadoActual === "Sesión en curso";
 
       btnCalibrar.disabled = desconectado || ocupado || enSesion;
       btnIniciar.disabled = desconectado || ocupado || enSesion;
@@ -104,15 +202,19 @@
     cliente.on("connect", () => {
       conectado = true;
       cliente.subscribe(TOPIC_ESTADO);
+
       if (!estadoActual) {
-        textoEstado.textContent = "Conectado, esperando al wearable...";
+        textoEstado.textContent =
+          "Conectado, esperando al wearable...";
       }
+
       actualizarBotones();
     });
 
     cliente.on("close", () => {
       conectado = false;
-      textoEstado.textContent = "Sin conexión con el servidor. Reintentando...";
+      textoEstado.textContent =
+        "Sin conexión con el servidor. Reintentando...";
       actualizarBotones();
     });
 
@@ -120,26 +222,67 @@
       console.error("Error MQTT:", err.message);
     });
 
-    // Cuando la Raspberry publica su estado, se muestra en pantalla
-    cliente.on("message", (topic, mensaje) => {
+    cliente.on("message", async (topic, mensaje) => {
       try {
         const datos = JSON.parse(mensaje.toString());
+
         estadoActual = datos.estado || "";
         textoEstado.textContent = estadoActual;
+
         actualizarBotones();
+
+        // La Raspberry confirma que realmente empezó
+        if (estadoActual === "Sesión en curso") {
+
+          if (inicioDesdeWeb) {
+            await crearSesionUsuario();
+            inicioDesdeWeb = false;
+          } else {
+            // Puede haberse iniciado desde Android
+            await buscarSesionActiva();
+          }
+        }
+
+        // La Raspberry confirma que terminó
+        if (estadoActual === "Sesión finalizada") {
+          await finalizarSesionUsuario();
+          inicioDesdeWeb = false;
+        }
+
+        if (estadoActual === "Primero calibra el sensor") {
+          inicioDesdeWeb = false;
+        }
+
       } catch (e) {
-        console.error("Mensaje de estado no válido:", mensaje.toString());
+        console.error(
+          "Mensaje de estado no válido:",
+          mensaje.toString()
+        );
       }
     });
 
     function enviarComando(comando) {
       if (!conectado) return;
-      cliente.publish(TOPIC_COMANDOS, JSON.stringify({ comando: comando }));
+
+      cliente.publish(
+        TOPIC_COMANDOS,
+        JSON.stringify({ comando: comando })
+      );
     }
 
-    btnCalibrar.addEventListener("click", () => enviarComando("calibrar"));
-    btnIniciar.addEventListener("click", () => enviarComando("iniciar"));
-    btnFinalizar.addEventListener("click", () => enviarComando("finalizar"));
+    btnCalibrar.addEventListener("click", () => {
+      enviarComando("calibrar");
+    });
+
+    btnIniciar.addEventListener("click", () => {
+      inicioDesdeWeb = true;
+      enviarComando("iniciar");
+    });
+
+    btnFinalizar.addEventListener("click", () => {
+      enviarComando("finalizar");
+    });
+
   </script>
 
 </body>
