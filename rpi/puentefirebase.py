@@ -14,8 +14,8 @@ from firebase_admin import credentials, firestore
 # MQTT
 BROKER = "ab111316.ala.us-east-1.emqxsl.com"
 PORT = 8883
-MQTT_USER = "refocus"
-MQTT_PASS = "refocus"
+MQTT_USER = "TU_USUARIO_MQTT" # se pone asi para proteger las credenciales  
+MQTT_PASS = "TU_CONTRASEÑA_MQTT"
 TOPIC = "sensores"                   
 TOPIC_ESTADO = "estado"      
 CLIENT_ID = "puente_firebase"      
