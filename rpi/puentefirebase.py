@@ -1,25 +1,5 @@
 #!/usr/bin/env python3
-"""
-puente_firebase_v2.py
-Corre en la Raspberry Pi (en una segunda terminal, junto al script de sensores).
 
-Se suscribe al broker EMQX y guarda las lecturas en Firestore.
-
-Novedad: ahora sigue los botones de la página web.
-  - Cuando el wearable avisa "Sesión en curso"  -> abre una sesión nueva en Firestore.
-  - Cuando avisa "Sesión finalizada" (o se desconecta) -> guarda lo pendiente y cierra la sesión.
-
-Estructura en Firestore:
-    sesiones/{sesion_id}                 -> inicio, fin
-    sesiones/{sesion_id}/lecturas/{auto} -> una lectura promediada por ventana de INTERVALO_S
-
-Entiende tres formatos de mensaje de sensores:
-  1. SenML (lista):  [{"bn": "...", "bt": 1728235343.1}, {"n": "bpm", "v": 80}, ...]
-  2. {"ts": <ms>, "values": {...}}
-  3. {"timestamp": <s>, "id_nodo": "1", "variables": {...}}
-
-Instalación (dentro del entorno virtual):  pip install paho-mqtt firebase-admin
-"""
 
 import json
 import queue
@@ -31,20 +11,20 @@ import paho.mqtt.client as mqtt
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# ---------------- Configuración ----------------
+# MQTT
 BROKER = "ab111316.ala.us-east-1.emqxsl.com"
 PORT = 8883
 MQTT_USER = "refocus"
 MQTT_PASS = "refocus"
-TOPIC = "sensores"                   # lecturas del sensor
-TOPIC_ESTADO = "estado"      # avisos de la Raspberry (sesión en curso / finalizada)
-CLIENT_ID = "puente_firebase"        # distinto al del script de sensores
+TOPIC = "sensores"                   
+TOPIC_ESTADO = "estado"      
+CLIENT_ID = "puente_firebase"      
 
 # Cada cuántos segundos se guarda un documento en Firestore.
-# 1 s -> 3.600 escrituras por hora (el plan gratis permite ~20.000 al día)
+
 INTERVALO_S = 1.0
 
-# ---------------- Firebase ----------------
+# Firebase
 cred = credentials.Certificate("firebase-credentials.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -53,7 +33,7 @@ cola = queue.Queue()
 FIN = object()
 
 
-# ---------------- Interpretar el mensaje ----------------
+# Interpretar el mensaje
 def a_datetime(t):
     """Acepta segundos o milisegundos y devuelve una fecha en UTC."""
     t = float(t)
@@ -69,7 +49,7 @@ def interpretar(payload):
     nodo = None
     valores = {}
 
-    if isinstance(datos, list):                       # formato SenML
+    if isinstance(datos, list):                     
         for r in datos:
             if "bt" in r:
                 ts = a_datetime(r["bt"])
@@ -83,7 +63,7 @@ def interpretar(payload):
                     valores[nombre] = r[clave]
                     break
 
-    elif isinstance(datos, dict):                     # formatos con "values" o "variables"
+    elif isinstance(datos, dict):                     
         valores = dict(datos.get("values") or datos.get("variables") or {})
         if "ts" in datos:
             ts = a_datetime(datos["ts"])
@@ -107,8 +87,6 @@ def agregar_derivados(v):
     """Calcula movimiento y giro_total por cada lectura (antes de promediar)."""
     try:
         ax, ay, az = float(v["accel_x"]), float(v["accel_y"]), float(v["accel_z"])
-        # Tu script de sensores ya resta la calibración y entrega en "g":
-        # en reposo la magnitud es ~1 g, así que se resta 1 (no 9.81).
         v["movimiento"] = abs((ax * ax + ay * ay + az * az) ** 0.5 - 1.0)
     except (KeyError, TypeError, ValueError):
         pass
@@ -123,14 +101,14 @@ def es_numero(x):
     return isinstance(x, (int, float)) and not isinstance(x, bool)
 
 
-# ---------------- Guardar en Firestore (hilo aparte) ----------------
+# Guardar en Firestore 
 def guardar(lecturas_ref, sesion_id, numericos, otros, nodo, ts, muestras):
     doc = {"sesion_id": sesion_id, "timestamp": ts, "muestras": muestras}
     if nodo is not None:
         doc["nodo"] = nodo
     for clave, lista in numericos.items():
         if clave == "bpm":
-            lista = [x for x in lista if x > 0]   # bpm = 0 significa "sin pulso detectado"
+            lista = [x for x in lista if x > 0]   
             if not lista:
                 continue
         doc[clave] = round(sum(lista) / len(lista), 4)
