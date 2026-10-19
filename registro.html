@@ -78,6 +78,16 @@
       const nombre = document.getElementById("nombre").value;
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
+
+      if (
+  password.length < 8 ||
+  !/[A-Z]/.test(password) ||
+  !/[a-z]/.test(password) ||
+  !/[0-9]/.test(password)
+) {
+  alert("La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula y un número.");
+  return;
+}
  
       const credencial = await auth.createUserWithEmailAndPassword(email, password);
       await credencial.user.updateProfile({ displayName: nombre });
