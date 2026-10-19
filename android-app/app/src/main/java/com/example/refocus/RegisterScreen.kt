@@ -201,11 +201,16 @@ fun RegisterScreen(
                             Toast.LENGTH_SHORT
                         ).show()
 
-                    } else if (password.length < 6) {
+                    } else if (
+                        password.length < 8 ||
+                        !password.any { it.isUpperCase() } ||
+                        !password.any { it.isLowerCase() } ||
+                        !password.any { it.isDigit() }
+                    ) {
 
                         Toast.makeText(
                             context,
-                            "La contraseña debe tener al menos 6 caracteres",
+                            "La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula y un número",
                             Toast.LENGTH_SHORT
                         ).show()
 
