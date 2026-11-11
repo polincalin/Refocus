@@ -583,3 +583,117 @@ iframe {
     margin-right: 0;
   }
 }
+
+/* ===== Secciones como cajitas ===== */
+#estadisticas,
+#seccion-ventanas {
+  width: min(1295px, 100% - 2rem);
+  margin: 24px auto;
+  padding: 24px;
+  background: #f0edf8;
+  border: 1px solid #d8d3ee;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+#estadisticas h2,
+#seccion-ventanas h2 {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  color: #1e3a6e;
+}
+
+#estadisticas h3 {
+  margin: 24px 0 12px;
+  font-size: 1.05rem;
+  color: #1e3a6e;
+}
+
+/* Mensajes como "No se pudieron cargar..." o "Aún no hay sesiones" */
+#estadisticas > p,
+#resumen-ultima > p,
+#mensaje-ventanas {
+  margin: 0;
+  color: #5b5b78;
+}
+
+/* ===== Tarjetas de la última sesión ===== */
+/* !important porque el HTML trae estilos en línea */
+#resumen-ultima {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+}
+
+#resumen-ultima > div {
+  background: #fff;
+  border: 1px solid #d8d3ee !important;
+  border-radius: 10px !important;
+  padding: 16px !important;
+  box-shadow: 0 2px 6px rgba(107, 85, 204, 0.08);
+  color: #5b5b78;
+  font-size: 0.9rem;
+}
+
+#resumen-ultima > div strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.7rem !important;
+  color: #6b55cc;
+}
+
+/* ===== Tablas ===== */
+#estadisticas h3 + div,
+#seccion-ventanas p + div {
+  background: #fff;
+  border: 1px solid #d8d3ee;
+  border-radius: 10px;
+  overflow: hidden;       /* respeta las esquinas redondeadas */
+  overflow-x: auto;
+}
+
+#estadisticas table,
+#seccion-ventanas table {
+  font-size: 0.9rem;
+}
+
+#estadisticas th,
+#seccion-ventanas th {
+  padding: 12px 10px;
+  background: #e4dff5;
+  color: #1e3a6e;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#estadisticas td,
+#seccion-ventanas td {
+  padding: 10px;
+  border-top: 1px solid #ece9f7;
+  color: #1a1a3a;
+}
+
+#estadisticas tbody tr:nth-child(even),
+#seccion-ventanas tbody tr:nth-child(even) {
+  background: #faf9fe;
+}
+
+#estadisticas tbody tr:hover,
+#seccion-ventanas tbody tr:hover {
+  background: #f0edf8;
+}
+
+/* ===== Alerta de vibración y monitoreo en tiempo real ===== */
+#alerta-vibracion {
+  width: min(1295px, 100% - 2rem);
+  margin: 16px auto !important;
+  box-sizing: border-box;
+}
+
+main iframe {
+  display: block;
+  width: min(1295px, 100% - 2rem);
+  margin: 24px auto;
+  border: 1px solid #d8d3ee !important;
+  border-radius: 8px;
+}

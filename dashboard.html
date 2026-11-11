@@ -19,6 +19,8 @@
   <main>
     <h1 id="saludo">Bienvenido</h1>
 
+    <div id="alerta-vibracion" style="display:none; background:#fee2e2; border:2px solid #dc2626; color:#7f1d1d; padding:12px 16px; border-radius:8px; margin:12px 0; font-weight:bold;"></div>
+
     <section id="panel-control">
       <h2>Control del wearable</h2>
       <p>Estado: <strong id="estado">Conectando...</strong></p>
@@ -31,6 +33,53 @@
         Para calibrar, deja el sensor quieto y plano sobre una mesa.
         Al iniciar la sesión, quédate en reposo unos 30 segundos mientras se mide tu línea base.
       </p>
+    </section>
+
+    <section id="estadisticas">
+      <h2>Estadísticas de sesiones</h2>
+
+      <div id="resumen-ultima" style="display:flex; gap:16px; flex-wrap:wrap;"></div>
+
+      <h3>Últimas sesiones</h3>
+      <div style="overflow-x:auto;">
+        <table id="tabla-sesiones" style="width:100%; border-collapse:collapse; text-align:center;">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Duración</th>
+              <th>BPM prom.</th>
+              <th>BPM máx.</th>
+              <th>Movimiento prom.</th>
+              <th>% mov. alto</th>
+              <th>Alertas</th>
+              <th>Distracciones</th>
+              <th>Delta GSR prom.</th>
+              <th>Tasa de enfoque</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-sesiones-cuerpo"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="seccion-ventanas">
+      <h2>Última sesión por ventanas (30 s)</h2>
+      <p id="mensaje-ventanas"></p>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; text-align:center;">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>BPM prom.</th>
+              <th>Mov. prom.</th>
+              <th>Delta GSR prom.</th>
+              <th>Eventos de alerta</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-ventanas-cuerpo"></tbody>
+        </table>
+      </div>
     </section>
 
     <iframe
@@ -66,6 +115,7 @@
       if (usuario) {
         usuarioActual = usuario;
         saludo.textContent = "Bienvenido, " + (usuario.displayName || usuario.email);
+        cargarEstadisticas();
         await buscarSesionActiva();
       } else {
         window.location.href = "login.html";
@@ -160,6 +210,151 @@
       console.log("Sesión finalizada en Firestore");
     }
 
+    // ---------- Estadísticas de sesiones (Firestore) ----------
+
+    function fmt(valor, sufijo = "") {
+      return valor === undefined || valor === null ? "-" : valor + sufijo;
+    }
+
+    function fmtDuracion(segundos) {
+      if (segundos === undefined || segundos === null) return "-";
+      const min = Math.floor(segundos / 60);
+      const seg = segundos % 60;
+      return min + " min " + seg + " s";
+    }
+
+    function tarjeta(titulo, valor) {
+      return `
+        <div style="border:1px solid #ccc; border-radius:8px; padding:12px 20px; text-align:center;">
+          <div>${titulo}</div>
+          <strong style="font-size:1.6em;">${valor}</strong>
+        </div>`;
+    }
+
+    async function cargarEstadisticas() {
+      const resumen = document.getElementById("resumen-ultima");
+      const cuerpo = document.getElementById("tabla-sesiones-cuerpo");
+
+      try {
+        if (!usuarioActual) return;
+
+        // Solo las sesiones de este usuario
+        const snap = await db
+          .collection("sesiones")
+          .where("uid", "==", usuarioActual.uid)
+          .get();
+
+        // Solo sesiones terminadas, las más recientes primero
+        const sesiones = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((s) => s.fin && s.inicio)
+          .sort((a, b) => b.inicio.toMillis() - a.inicio.toMillis())
+          .slice(0, 10);
+
+        if (sesiones.length === 0) {
+          resumen.innerHTML = "<p>Aún no hay sesiones finalizadas.</p>";
+          cuerpo.innerHTML = "";
+          return;
+        }
+
+        // Tarjetas con la última sesión
+        const u = sesiones[0];
+        resumen.innerHTML =
+          tarjeta("Duración", fmtDuracion(u.duracion_s)) +
+          tarjeta("BPM promedio", fmt(u.bpm_prom)) +
+          tarjeta("Movimiento alto", fmt(u.pct_mov_alto, " %")) +
+          tarjeta("Alertas", fmt(u.n_alertas)) +
+          tarjeta("Distracciones", fmt(u.n_distracciones)) +
+          tarjeta("Tasa de enfoque", fmt(u.tasa_enfoque, " %"));
+
+        // Tabla con las últimas sesiones
+        cuerpo.innerHTML = sesiones
+          .map((s) => `
+            <tr>
+              <td>${s.inicio ? s.inicio.toDate().toLocaleString() : "-"}</td>
+              <td>${fmtDuracion(s.duracion_s)}</td>
+              <td>${fmt(s.bpm_prom)}</td>
+              <td>${fmt(s.bpm_max)}</td>
+              <td>${fmt(s.mov_prom)}</td>
+              <td>${fmt(s.pct_mov_alto, " %")}</td>
+              <td>${fmt(s.n_alertas)}</td>
+              <td>${fmt(s.n_distracciones)}</td>
+              <td>${fmt(s.gsr_prom)}</td>
+              <td>${fmt(s.tasa_enfoque, " %")}</td>
+            </tr>`)
+          .join("");
+
+        cargarVentanas(sesiones[0].id);
+
+      } catch (e) {
+        console.error("Error al cargar estadísticas:", e);
+        resumen.innerHTML = "<p>No se pudieron cargar las estadísticas.</p>";
+      }
+    }
+
+    // ---------- Ventanas de la última sesión (Firestore) ----------
+
+    async function cargarVentanas(sesionId) {
+      const mensaje = document.getElementById("mensaje-ventanas");
+      const cuerpo = document.getElementById("tabla-ventanas-cuerpo");
+
+      try {
+        const snap = await db
+          .collection("sesiones")
+          .doc(sesionId)
+          .collection("ventanas")
+          .orderBy("inicio")
+          .get();
+
+        if (snap.empty) {
+          mensaje.textContent = "La última sesión no tiene ventanas guardadas.";
+          cuerpo.innerHTML = "";
+          return;
+        }
+
+        mensaje.textContent = "";
+
+        cuerpo.innerHTML = snap.docs
+          .map((d) => d.data())
+          .map((v) => `
+            <tr>
+              <td>${v.inicio.toDate().toLocaleTimeString()}</td>
+              <td>${fmt(v.bpm_prom)}</td>
+              <td>${fmt(v.mov_prom)}</td>
+              <td>${fmt(v.gsr_prom)}</td>
+              <td>${fmt(v.n_alertas)}</td>
+            </tr>`)
+          .join("");
+
+      } catch (e) {
+        console.error("Error al cargar ventanas:", e);
+        mensaje.textContent = "No se pudieron cargar las ventanas.";
+      }
+    }
+
+    // ---------- Alerta cuando el wearable vibra ----------
+
+    let temporizadorAlerta = null;
+
+    function mostrarAlerta(datos) {
+      // Solo se muestra al dueño de la sesión
+      if (!usuarioActual || datos.uid !== usuarioActual.uid) return;
+
+      const caja = document.getElementById("alerta-vibracion");
+
+      caja.textContent =
+        "⚠ Posible distracción detectada (" +
+        new Date().toLocaleTimeString() +
+        "): el wearable vibró.";
+      caja.style.display = "block";
+
+      // Se oculta sola a los 10 segundos
+      clearTimeout(temporizadorAlerta);
+      temporizadorAlerta = setTimeout(() => {
+        caja.style.display = "none";
+      }, 10000);
+    }
+
     // ---------- Control del wearable por MQTT ----------
 
     const MQTT_URL = "wss://ab111316.ala.us-east-1.emqxsl.com:8084/mqtt";
@@ -168,6 +363,7 @@
 
     const TOPIC_COMANDOS = "comandos";
     const TOPIC_ESTADO = "estado";
+    const TOPIC_ALERTAS = "alertas";
 
     const textoEstado = document.getElementById("estado");
     const btnCalibrar = document.getElementById("btn-calibrar");
@@ -201,7 +397,7 @@
 
     cliente.on("connect", () => {
       conectado = true;
-      cliente.subscribe(TOPIC_ESTADO);
+      cliente.subscribe([TOPIC_ESTADO, TOPIC_ALERTAS]);
 
       if (!estadoActual) {
         textoEstado.textContent =
@@ -226,6 +422,12 @@
       try {
         const datos = JSON.parse(mensaje.toString());
 
+        // Alerta de vibración: no es un cambio de estado
+        if (topic === TOPIC_ALERTAS) {
+          mostrarAlerta(datos);
+          return;
+        }
+
         estadoActual = datos.estado || "";
         textoEstado.textContent = estadoActual;
 
@@ -246,6 +448,7 @@
         // La Raspberry confirma que terminó
         if (estadoActual === "Sesión finalizada") {
           await finalizarSesionUsuario();
+          cargarEstadisticas();
           inicioDesdeWeb = false;
         }
 
@@ -266,7 +469,10 @@
 
       cliente.publish(
         TOPIC_COMANDOS,
-        JSON.stringify({ comando: comando })
+        JSON.stringify({
+          comando: comando,
+          uid: usuarioActual ? usuarioActual.uid : null
+        })
       );
     }
 
