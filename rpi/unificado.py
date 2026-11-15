@@ -684,6 +684,25 @@ try:
                 publicar_estado("Sesión en curso")
 
 
+        # VIBRACIÓN POR INTERRUPCIÓN DIGITAL DESDE LA APP
+
+        elif cmd == "vibrar_app":
+
+            # Solo vibra si hay una sesión activa. Si llegó UID, además
+            # comprobamos que corresponda al usuario de la sesión.
+            if midiendo and (uid_cmd is None or uid_cmd == uid_sesion):
+
+                print(">>> Interrupción digital detectada desde Android")
+
+                guardar("eventos", {
+                    "ts": datetime.now(timezone.utc),
+                    "tipo": "interrupcion_digital",
+                    "origen": "android"
+                })
+
+                vibrar()
+
+
         # FINALIZAR
 
         elif cmd == "finalizar":
