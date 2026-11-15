@@ -43,6 +43,12 @@
             required
           >
 
+          <p>
+            <a href="#" id="recuperar-password">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </p>
+
           <button type="submit">Iniciar sesión</button>
         </form>
 
@@ -58,18 +64,41 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="firebase-conf.json"></script>
- 
+
   <script>
     const formLogin = document.getElementById("form-login");
- 
+    const recuperarPassword = document.getElementById("recuperar-password");
+
     formLogin.addEventListener("submit", async (evento) => {
       evento.preventDefault();
- 
+
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
- 
-      await auth.signInWithEmailAndPassword(email, password);
-      window.location.href = "dashboard.html";
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        window.location.href = "dashboard.html";
+      } catch (error) {
+        alert("No fue posible iniciar sesión. Revisa tu correo y contraseña.");
+      }
+    });
+
+    recuperarPassword.addEventListener("click", async (evento) => {
+      evento.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+
+      if (!email) {
+        alert("Escribe primero tu correo electrónico.");
+        return;
+      }
+
+      try {
+        await auth.sendPasswordResetEmail(email);
+        alert("Te enviamos un correo para restablecer tu contraseña.");
+      } catch (error) {
+        alert("No fue posible enviar el correo de recuperación.");
+      }
     });
   </script>
 
