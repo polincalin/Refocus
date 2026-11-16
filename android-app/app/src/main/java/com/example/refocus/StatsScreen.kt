@@ -47,495 +47,352 @@ fun StatsScreen(
     onTipsClick: () -> Unit
 ) {
 
-    val uid =
-        FirebaseAuth
-            .getInstance()
-            .currentUser
-            ?.uid
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
+    val scope = rememberCoroutineScope()
 
-    val scope =
-        rememberCoroutineScope()
+    var cargando by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-    var cargando by
-    remember {
-        mutableStateOf(true)
+    var sesionesDigitales by remember {
+        mutableStateOf<List<DigitalSession>>(emptyList())
     }
 
-    var error by
-    remember {
-        mutableStateOf<String?>(null)
+    var sesionesAnaliticas by remember {
+        mutableStateOf<List<AnalyticsSession>>(emptyList())
     }
 
-    var sesiones by
-    remember {
-        mutableStateOf<List<DigitalSession>>(
-            emptyList()
-        )
+    var telemetria by remember {
+        mutableStateOf<ThingsBoardStats?>(null)
     }
 
-    var telemetria by
-    remember {
-        mutableStateOf<ThingsBoardStats?>(
-            null
-        )
-    }
-
-    var cargandoGraficas by
-    remember {
+    var cargandoGraficas by remember {
         mutableStateOf(false)
     }
 
-    var errorGraficas by
-    remember {
+    var errorGraficas by remember {
         mutableStateOf<String?>(null)
     }
 
     LaunchedEffect(uid) {
 
         if (uid == null) {
-
             cargando = false
-
-            error =
-                "No se encontró el usuario."
-
+            error = "No se encontró el usuario."
             return@LaunchedEffect
         }
 
-        AnalyticsRepository
-            .cargarSesionesDigitalesUsuario(
+        AnalyticsRepository.cargarSesionesDigitalesUsuario(
+            uid = uid,
 
-                uid = uid,
+            onSuccess = { lista ->
 
-                onSuccess = {
-                        lista ->
+                sesionesDigitales = lista
+                cargando = false
 
-                    sesiones =
-                        lista
+                val ultima = lista.firstOrNull()
 
-                    cargando =
-                        false
+                if (ultima != null) {
 
-                    val ultima =
-                        lista.firstOrNull()
+                    cargandoGraficas = true
+                    errorGraficas = null
 
-                    if (
-                        ultima != null
-                    ) {
+                    val margen = 2000L
 
-                        cargandoGraficas =
-                            true
+                    val startTs =
+                        (ultima.inicioMillis - margen)
+                            .coerceAtLeast(0L)
 
-                        errorGraficas =
-                            null
+                    val endTs =
+                        ultima.inicioMillis +
+                                ultima.duracionS.coerceAtLeast(1) * 1000L +
+                                margen
 
-                        val margen =
-                            2000L
+                    scope.launch {
 
-                        val startTs =
-                            (
-                                    ultima.inicioMillis -
-                                            margen
-                                    ).coerceAtLeast(
-                                    0L
-                                )
+                        ThingsBoardRepository.cargarIntervalo(
+                            startTs = startTs,
+                            endTs = endTs
+                        )
+                            .onSuccess {
+                                telemetria = it
+                                errorGraficas = null
+                            }
+                            .onFailure {
+                                telemetria = null
+                                errorGraficas =
+                                    "No se pudieron cargar las gráficas."
+                            }
 
-                        val endTs =
-                            ultima.inicioMillis +
-                                    ultima.duracionS
-                                        .coerceAtLeast(
-                                            1
-                                        ) *
-                                    1000L +
-                                    margen
-
-                        scope.launch {
-
-                            ThingsBoardRepository
-                                .cargarIntervalo(
-                                    startTs =
-                                        startTs,
-                                    endTs =
-                                        endTs
-                                )
-                                .onSuccess {
-
-                                    telemetria =
-                                        it
-
-                                    errorGraficas =
-                                        null
-                                }
-                                .onFailure {
-
-                                    telemetria =
-                                        null
-
-                                    errorGraficas =
-                                        "No se pudieron cargar las gráficas."
-                                }
-
-                            cargandoGraficas =
-                                false
-                        }
+                        cargandoGraficas = false
                     }
-                },
-
-                onError = {
-
-                    cargando =
-                        false
-
-                    error =
-                        "No se pudieron cargar las sesiones."
                 }
-            )
+            },
+
+            onError = {
+                cargando = false
+                error = "No se pudieron cargar las sesiones."
+            }
+        )
+
+        AnalyticsRepository.cargarSesionesUsuario(
+            uid = uid,
+
+            onSuccess = { lista ->
+                sesionesAnaliticas = lista
+            },
+
+            onError = {
+                // La pantalla sigue funcionando sin analítica técnica.
+            }
+        )
     }
 
     Surface(
-        modifier =
-            Modifier.fillMaxSize(),
-        color =
-            Color(0xFFF7F5FC)
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFFF7F5FC)
     ) {
 
         Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(
-                        horizontal =
-                            24.dp
-                    )
-                    .padding(
-                        top =
-                            28.dp,
-                        bottom =
-                            12.dp
-                    )
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 28.dp, bottom = 12.dp)
         ) {
 
             Text(
-                text =
-                    "Tus estadísticas",
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    Color(0xFF1D427A)
+                text = "Tus estadísticas",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1D427A)
             )
 
             Text(
-                text =
-                    "Un resumen sencillo de tus sesiones.",
-                color =
-                    Color(0xFF686878)
+                text = "Un resumen sencillo de tus sesiones.",
+                color = Color(0xFF686878)
             )
 
-            Spacer(
-                Modifier.height(
-                    18.dp
-                )
-            )
+            Spacer(Modifier.height(18.dp))
 
             Column(
-                modifier =
-                    Modifier
-                        .weight(
-                            1f
-                        )
-                        .verticalScroll(
-                            rememberScrollState()
-                        )
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
             ) {
 
                 when {
 
                     cargando -> {
-
                         Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        top =
-                                            60.dp
-                                    ),
-                            horizontalAlignment =
-                                Alignment.CenterHorizontally
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 60.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-
                             CircularProgressIndicator(
-                                color =
-                                    Color(0xFF6755CE)
+                                color = Color(0xFF6755CE)
                             )
                         }
                     }
 
                     error != null -> {
-
                         Text(
-                            text =
-                                error.orEmpty(),
-                            color =
-                                Color(0xFF686878)
+                            text = error.orEmpty(),
+                            color = Color(0xFF686878)
                         )
                     }
 
-                    sesiones.isEmpty() -> {
-
+                    sesionesDigitales.isEmpty() -> {
                         Text(
-                            text =
-                                "Aún no tienes sesiones registradas.",
-                            color =
-                                Color(0xFF686878)
+                            text = "Aún no tienes sesiones registradas.",
+                            color = Color(0xFF686878)
                         )
                     }
 
                     else -> {
 
-                        val ultima =
-                            sesiones.first()
+                        val ultimaDigital = sesionesDigitales.first()
+
+                        val ultimaAnalitica =
+                            sesionesAnaliticas.firstOrNull()
 
                         Text(
-                            text =
-                                "Última sesión",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-                            fontWeight =
-                                FontWeight.SemiBold,
-                            color =
-                                Color(0xFF1D427A)
+                            text = "Última sesión",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
                         )
 
-                        Spacer(
-                            Modifier.height(
-                                10.dp
-                            )
-                        )
+                        Spacer(Modifier.height(10.dp))
 
                         Row(
-                            modifier =
-                                Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement =
-                                Arrangement.spacedBy(
-                                    10.dp
-                                )
+                                Arrangement.spacedBy(10.dp)
                         ) {
 
                             MetricCard(
-                                title =
-                                    "Duración",
-                                value =
-                                    formatearDuracion(
-                                        ultima.duracionS
-                                    ),
-                                modifier =
-                                    Modifier.weight(
-                                        1f
-                                    )
+                                title = "Duración",
+                                value = formatearDuracion(
+                                    ultimaDigital.duracionS
+                                ),
+                                modifier = Modifier.weight(1f)
                             )
 
                             MetricCard(
-                                title =
-                                    "Interrupciones digitales",
-                                value =
-                                    ultima
-                                        .interrupcionesDigitales
-                                        .toString(),
-                                modifier =
-                                    Modifier.weight(
-                                        1f
-                                    )
+                                title = "Interrupciones digitales",
+                                value = ultimaDigital
+                                    .interrupcionesDigitales
+                                    .toString(),
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
-                        Spacer(
-                            Modifier.height(
-                                24.dp
+                        // ANALÍTICA: LAS TARJETAS SIEMPRE APARECEN
+
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.spacedBy(10.dp)
+                        ) {
+
+                            MetricCard(
+                                title = "Alertas",
+                                value = ultimaAnalitica
+                                    ?.nAlertas
+                                    ?.toString()
+                                    ?: "—",
+                                modifier = Modifier.weight(1f)
                             )
+
+                            MetricCard(
+                                title = "Posibles distracciones",
+                                value = ultimaAnalitica
+                                    ?.nDistracciones
+                                    ?.toString()
+                                    ?: "—",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        MetricCard(
+                            title = "Tasa de enfoque",
+                            value = ultimaAnalitica
+                                ?.tasaEnfoque
+                                ?.let {
+                                    "${
+                                        formatearValor(
+                                            it.toFloat(),
+                                            0
+                                        )
+                                    }%"
+                                }
+                                ?: "—",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(Modifier.height(24.dp))
+
+                        Text(
+                            text = "Señales de la última sesión",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
                         )
 
                         Text(
-                            text =
-                                "Señales de la última sesión",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-                            fontWeight =
-                                FontWeight.SemiBold,
-                            color =
-                                Color(0xFF1D427A)
+                            text = "Datos obtenidos desde ThingsBoard.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF686878)
                         )
 
-                        Text(
-                            text =
-                                "Datos obtenidos desde ThingsBoard.",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodySmall,
-                            color =
-                                Color(0xFF686878)
-                        )
-
-                        Spacer(
-                            Modifier.height(
-                                12.dp
-                            )
-                        )
+                        Spacer(Modifier.height(12.dp))
 
                         when {
 
                             cargandoGraficas -> {
-
                                 Column(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(
-                                                30.dp
-                                            ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(30.dp),
                                     horizontalAlignment =
                                         Alignment.CenterHorizontally
                                 ) {
-
                                     CircularProgressIndicator(
-                                        color =
-                                            Color(0xFF6755CE)
+                                        color = Color(0xFF6755CE)
                                     )
                                 }
                             }
 
                             errorGraficas != null -> {
-
                                 Text(
-                                    text =
-                                        errorGraficas
-                                            .orEmpty(),
-                                    color =
-                                        Color(0xFF686878)
+                                    text = errorGraficas.orEmpty(),
+                                    color = Color(0xFF686878)
                                 )
                             }
 
                             telemetria != null -> {
 
                                 TelemetryChart(
-                                    title =
-                                        "Ritmo cardiaco",
-                                    unit =
-                                        "BPM",
-                                    points =
-                                        telemetria!!.bpm,
-                                    color =
-                                        Color(0xFF6755CE),
-                                    decimals =
-                                        0
+                                    title = "Ritmo cardiaco",
+                                    unit = "BPM",
+                                    points = telemetria!!.bpm,
+                                    color = Color(0xFF6755CE),
+                                    decimals = 0
                                 )
 
-                                Spacer(
-                                    Modifier.height(
-                                        12.dp
-                                    )
-                                )
+                                Spacer(Modifier.height(12.dp))
 
                                 TelemetryChart(
-                                    title =
-                                        "GSR",
-                                    unit =
-                                        "V",
-                                    points =
-                                        telemetria!!.gsr,
-                                    color =
-                                        Color(0xFF1D427A),
-                                    decimals =
-                                        3
+                                    title = "GSR",
+                                    unit = "V",
+                                    points = telemetria!!.gsr,
+                                    color = Color(0xFF1D427A),
+                                    decimals = 3
                                 )
 
-                                Spacer(
-                                    Modifier.height(
-                                        12.dp
-                                    )
-                                )
+                                Spacer(Modifier.height(12.dp))
 
                                 TelemetryChart(
-                                    title =
-                                        "Movimiento",
-                                    unit =
-                                        "g",
-                                    points =
-                                        telemetria!!
-                                            .movimiento,
-                                    color =
-                                        Color(0xFF7B68EE),
-                                    decimals =
-                                        3
+                                    title = "Movimiento",
+                                    unit = "g",
+                                    points = telemetria!!.movimiento,
+                                    color = Color(0xFF7B68EE),
+                                    decimals = 3
                                 )
                             }
                         }
 
-                        Spacer(
-                            Modifier.height(
-                                24.dp
-                            )
-                        )
+                        Spacer(Modifier.height(24.dp))
 
                         Text(
-                            text =
-                                "Sesiones recientes",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .titleMedium,
-                            fontWeight =
-                                FontWeight.SemiBold,
-                            color =
-                                Color(0xFF1D427A)
+                            text = "Sesiones recientes",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
                         )
 
-                        Spacer(
-                            Modifier.height(
-                                8.dp
-                            )
-                        )
+                        Spacer(Modifier.height(8.dp))
 
-                        sesiones
-                            .take(
-                                6
-                            )
-                            .forEach {
-                                    sesion ->
+                        sesionesDigitales.take(6).forEach { sesion ->
 
-                                SessionRow(
-                                    sesion
-                                )
+                            SessionRow(sesion)
 
-                                Spacer(
-                                    Modifier.height(
-                                        8.dp
-                                    )
-                                )
-                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
             }
 
             ReFocusBottomBar(
-                selected =
-                    "stats",
-                onHome =
-                    onHomeClick,
+                selected = "stats",
+                onHome = onHomeClick,
                 onStats = {},
-                onHabits =
-                    onHabitsClick,
-                onTips =
-                    onTipsClick
+                onHabits = onHabitsClick,
+                onTips = onTipsClick
             )
         }
     }
@@ -551,272 +408,145 @@ private fun TelemetryChart(
 ) {
 
     Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                18.dp
-            ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    Color.White
-            )
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        )
     ) {
 
         Column(
-            modifier =
-                Modifier.padding(
-                    16.dp
-                )
+            modifier = Modifier.padding(16.dp)
         ) {
 
             Text(
-                text =
-                    title,
-                fontWeight =
-                    FontWeight.SemiBold,
-                color =
-                    Color(0xFF1D427A)
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1D427A)
             )
 
-            if (
-                points.isEmpty()
-            ) {
+            if (points.isEmpty()) {
 
-                Spacer(
-                    Modifier.height(
-                        8.dp
-                    )
-                )
+                Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text =
-                        "Sin datos en esta sesión.",
-                    color =
-                        Color(0xFF686878)
+                    text = "Sin datos en esta sesión.",
+                    color = Color(0xFF686878)
                 )
 
                 return@Column
             }
 
-            val valores =
-                points.map {
-                    it.value
-                }
-
-            val minimo =
-                valores.minOrNull()
-                    ?: 0f
-
-            val maximo =
-                valores.maxOrNull()
-                    ?: 0f
-
-            val promedio =
-                valores
-                    .average()
-                    .toFloat()
+            val valores = points.map { it.value }
+            val minimo = valores.minOrNull() ?: 0f
+            val maximo = valores.maxOrNull() ?: 0f
+            val promedio = valores.average().toFloat()
 
             Text(
-                text =
-                    "Promedio: ${
-                        formatearValor(
-                            promedio,
-                            decimals
-                        )
-                    } $unit",
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-                color =
-                    Color(0xFF686878)
+                text = "Promedio: ${
+                    formatearValor(promedio, decimals)
+                } $unit",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF686878)
             )
 
-            Spacer(
-                Modifier.height(
-                    12.dp
-                )
-            )
+            Spacer(Modifier.height(12.dp))
 
             Canvas(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(
-                            150.dp
-                        )
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
             ) {
 
-                val margen =
-                    8.dp.toPx()
+                val margen = 8.dp.toPx()
+                val ancho = size.width - margen * 2
+                val alto = size.height - margen * 2
 
-                val ancho =
-                    size.width -
-                            margen * 2
+                repeat(4) { i ->
 
-                val alto =
-                    size.height -
-                            margen * 2
-
-                repeat(
-                    4
-                ) {
-                        i ->
-
-                    val y =
-                        margen +
-                                alto *
-                                i /
-                                3f
+                    val y = margen + alto * i / 3f
 
                     drawLine(
-                        color =
-                            Color(0xFFE8E5F0),
-                        start =
-                            Offset(
-                                margen,
-                                y
-                            ),
-                        end =
-                            Offset(
-                                margen +
-                                        ancho,
-                                y
-                            ),
-                        strokeWidth =
-                            1.dp.toPx()
+                        color = Color(0xFFE8E5F0),
+                        start = Offset(margen, y),
+                        end = Offset(margen + ancho, y),
+                        strokeWidth = 1.dp.toPx()
                     )
                 }
 
-                if (
-                    points.size == 1
-                ) {
+                if (points.size == 1) {
 
                     drawCircle(
-                        color =
-                            color,
-                        radius =
-                            4.dp.toPx(),
-                        center =
-                            Offset(
-                                size.width /
-                                        2,
-                                size.height /
-                                        2
-                            )
+                        color = color,
+                        radius = 4.dp.toPx(),
+                        center = Offset(
+                            size.width / 2,
+                            size.height / 2
+                        )
                     )
 
                 } else {
 
                     val rango =
                         (maximo - minimo)
-                            .takeIf {
-                                it > 0.0001f
-                            }
+                            .takeIf { it > 0.0001f }
                             ?: 1f
 
-                    val path =
-                        Path()
+                    val path = Path()
 
-                    points.forEachIndexed {
-                            index,
-                            punto ->
+                    points.forEachIndexed { index, punto ->
 
                         val x =
                             margen +
-                                    ancho *
-                                    index /
-                                    (
-                                            points.size -
-                                                    1
-                                            ).toFloat()
+                                    ancho * index /
+                                    (points.size - 1).toFloat()
 
                         val normalizado =
-                            (
-                                    punto.value -
-                                            minimo
-                                    ) /
-                                    rango
+                            (punto.value - minimo) / rango
 
                         val y =
                             margen +
                                     alto -
-                                    normalizado *
-                                    alto
+                                    normalizado * alto
 
-                        if (
-                            index == 0
-                        ) {
-
-                            path.moveTo(
-                                x,
-                                y
-                            )
-
+                        if (index == 0) {
+                            path.moveTo(x, y)
                         } else {
-
-                            path.lineTo(
-                                x,
-                                y
-                            )
+                            path.lineTo(x, y)
                         }
                     }
 
                     drawPath(
-                        path =
-                            path,
-                        color =
-                            color,
-                        style =
-                            Stroke(
-                                width =
-                                    3.dp.toPx(),
-                                cap =
-                                    StrokeCap.Round
-                            )
+                        path = path,
+                        color = color,
+                        style = Stroke(
+                            width = 3.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
                     )
                 }
             }
 
             Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement =
                     Arrangement.SpaceBetween
             ) {
 
                 Text(
-                    text =
-                        "Mín. ${
-                            formatearValor(
-                                minimo,
-                                decimals
-                            )
-                        } $unit",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-                    color =
-                        Color(0xFF8A8A99)
+                    text = "Mín. ${
+                        formatearValor(minimo, decimals)
+                    } $unit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF8A8A99)
                 )
 
                 Text(
-                    text =
-                        "Máx. ${
-                            formatearValor(
-                                maximo,
-                                decimals
-                            )
-                        } $unit",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .labelSmall,
-                    color =
-                        Color(0xFF8A8A99)
+                    text = "Máx. ${
+                        formatearValor(maximo, decimals)
+                    } $unit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF8A8A99)
                 )
             }
         }
@@ -829,86 +559,58 @@ private fun SessionRow(
 ) {
 
     Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-        shape =
-            RoundedCornerShape(
-                16.dp
-            ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    Color.White
-            )
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        )
     ) {
 
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        14.dp
-                    ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
             horizontalArrangement =
                 Arrangement.SpaceBetween,
-            verticalAlignment =
-                Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
             Column {
 
                 Text(
-                    text =
-                        SimpleDateFormat(
-                            "dd/MM/yyyy HH:mm",
-                            Locale.getDefault()
-                        ).format(
-                            Date(
-                                sesion
-                                    .inicioMillis
-                            )
-                        ),
-                    fontWeight =
-                        FontWeight.Medium,
-                    color =
-                        Color(0xFF1D427A)
+                    text = SimpleDateFormat(
+                        "dd/MM/yyyy HH:mm",
+                        Locale.getDefault()
+                    ).format(
+                        Date(sesion.inicioMillis)
+                    ),
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1D427A)
                 )
 
                 Text(
-                    text =
-                        formatearDuracion(
-                            sesion.duracionS
-                        ),
-                    color =
-                        Color(0xFF686878)
+                    text = formatearDuracion(
+                        sesion.duracionS
+                    ),
+                    color = Color(0xFF686878)
                 )
             }
 
             Text(
-                text =
-                    "${sesion.interrupcionesDigitales} interrup.",
-                color =
-                    Color(0xFF6755CE),
-                fontWeight =
-                    FontWeight.SemiBold
+                text = "${sesion.interrupcionesDigitales} interrup.",
+                color = Color(0xFF6755CE),
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
 }
 
-fun formatearDuracion(
-    segundos: Int
-): String {
+fun formatearDuracion(segundos: Int): String {
 
-    val min =
-        segundos / 60
+    val min = segundos / 60
+    val seg = segundos % 60
 
-    val seg =
-        segundos % 60
-
-    return if (
-        min == 0
-    ) {
+    return if (min == 0) {
         "${seg}s"
     } else {
         "${min}m ${seg}s"
