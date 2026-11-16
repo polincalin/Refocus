@@ -12,330 +12,154 @@ import java.util.UUID
 
 object MqttManager {
 
-    // --------------------------------
-    // CONFIGURACIÓN DEL BROKER
-    // --------------------------------
+    private const val HOST = "ab111316.ala.us-east-1.emqxsl.com"
+    private const val PORT = 8883
 
-    private const val HOST =
-        "ab111316.ala.us-east-1.emqxsl.com"
+    // Mantener estas credenciales fuera del repositorio público final.
+    private const val USERNAME = "web"
+    private const val PASSWORD = "web"
 
-    private const val PORT =
-        8883
-
-    // Para esta primera prueba usa las mismas
-    // credenciales MQTT que tiene el dashboard web.
-    //
-    // NO las subamos todavía a GitHub.
-    private const val USERNAME =
-        "web"
-
-    private const val PASSWORD =
-        "web"
-
-    // Deben coincidir con la Raspberry
-    private const val TOPIC_COMANDOS =
-        "comandos"
-
-    private const val TOPIC_ESTADO =
-        "estado"
-
-    // --------------------------------
-    // CLIENTE MQTT
-    // --------------------------------
+    private const val TOPIC_COMANDOS = "comandos"
+    private const val TOPIC_ESTADO = "estado"
+    private const val TOPIC_ALERTAS = "alertas"
 
     private var client: Mqtt5AsyncClient? = null
-
     private var conectado = false
 
-    private val mainHandler =
-        Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
 
-    // --------------------------------
-    // CALLBACKS PARA LA APP
-    // --------------------------------
+    var onConexionCambiada: ((Boolean) -> Unit)? = null
+    var onEstadoRecibido: ((String) -> Unit)? = null
 
-    var onConexionCambiada:
-            ((Boolean) -> Unit)? = null
-
-    var onEstadoRecibido:
-            ((String) -> Unit)? = null
-
-    // --------------------------------
-    // CONECTAR
-    // --------------------------------
+    // Entrega el UID incluido en la alerta para que la app pueda
+    // comprobar que la vibración pertenece al usuario actual.
+    var onAlertaRecibida: ((String?) -> Unit)? = null
 
     fun conectar() {
+        if (conectado) return
 
-        if (conectado) {
-            return
-        }
-
-        val nuevoCliente =
-            Mqtt5Client
-                .builder()
-
-                // Cada celular tendrá un ID MQTT diferente
-                .identifier(
-                    "refocus-android-" +
-                            UUID.randomUUID().toString()
-                )
-
-                .serverHost(HOST)
-
-                .serverPort(PORT)
-
-                // MQTT seguro
-                .sslWithDefaultConfig()
-
-                // Usuario y contraseña MQTT
-                .simpleAuth()
-                .username(USERNAME)
-                .password(
-                    PASSWORD.toByteArray(
-                        StandardCharsets.UTF_8
-                    )
-                )
-                .applySimpleAuth()
-
-                .buildAsync()
+        val nuevoCliente = Mqtt5Client.builder()
+            .identifier("refocus-android-${UUID.randomUUID()}")
+            .serverHost(HOST)
+            .serverPort(PORT)
+            .sslWithDefaultConfig()
+            .simpleAuth()
+            .username(USERNAME)
+            .password(PASSWORD.toByteArray(StandardCharsets.UTF_8))
+            .applySimpleAuth()
+            .buildAsync()
 
         client = nuevoCliente
 
-        nuevoCliente
-            .connect()
-            .whenComplete { _, error ->
-
-                if (error != null) {
-
-                    conectado = false
-
-                    Log.e(
-                        "REFocusMQTT",
-                        "Error conectando a MQTT",
-                        error
-                    )
-
-                    mainHandler.post {
-
-                        onConexionCambiada
-                            ?.invoke(false)
-                    }
-
-                } else {
-
-                    conectado = true
-
-                    Log.d(
-                        "REFocusMQTT",
-                        "Conectado a EMQX"
-                    )
-
-                    mainHandler.post {
-
-                        onConexionCambiada
-                            ?.invoke(true)
-                    }
-
-                    suscribirseAEstado()
-                }
+        nuevoCliente.connect().whenComplete { _, error ->
+            if (error != null) {
+                conectado = false
+                Log.e("REFocusMQTT", "Error conectando a MQTT", error)
+                mainHandler.post { onConexionCambiada?.invoke(false) }
+            } else {
+                conectado = true
+                Log.d("REFocusMQTT", "Conectado a EMQX")
+                mainHandler.post { onConexionCambiada?.invoke(true) }
+                suscribirseAEstado()
+                suscribirseAAlertas()
             }
+        }
     }
 
-    // --------------------------------
-    // ESCUCHAR ESTADO DE RASPBERRY
-    // --------------------------------
-
     private fun suscribirseAEstado() {
+        val mqttClient = client ?: return
 
-        val mqttClient =
-            client ?: return
-
-        mqttClient
-            .subscribeWith()
-
-            .topicFilter(
-                TOPIC_ESTADO
-            )
-
-            .qos(
-                MqttQos.AT_LEAST_ONCE
-            )
-
+        mqttClient.subscribeWith()
+            .topicFilter(TOPIC_ESTADO)
+            .qos(MqttQos.AT_LEAST_ONCE)
             .callback { publish ->
-
                 try {
-
-                    val buffer =
-                        publish.payload.orElse(null)
-
-                    if (buffer == null) {
-                        return@callback
-                    }
-
-                    val mensaje =
-                        StandardCharsets.UTF_8
-                            .decode(buffer)
-                            .toString()
-
-                    Log.d(
-                        "REFocusMQTT",
-                        "Estado recibido: $mensaje"
-                    )
+                    val buffer = publish.payload.orElse(null) ?: return@callback
+                    val mensaje = StandardCharsets.UTF_8.decode(buffer).toString()
 
                     val estado = try {
-
-                        val json =
-                            JSONObject(mensaje)
-
-                        json.optString(
-                            "estado",
-                            mensaje
-                        )
-
+                        JSONObject(mensaje).optString("estado", mensaje)
                     } catch (_: Exception) {
-
                         mensaje
                     }
 
                     mainHandler.post {
-
-                        onEstadoRecibido
-                            ?.invoke(estado)
+                        onEstadoRecibido?.invoke(estado)
                     }
-
                 } catch (e: Exception) {
-
-                    Log.e(
-                        "REFocusMQTT",
-                        "Error leyendo estado",
-                        e
-                    )
+                    Log.e("REFocusMQTT", "Error leyendo estado", e)
                 }
             }
-
             .send()
-            .whenComplete { _, error ->
-
-                if (error != null) {
-
-                    Log.e(
-                        "REFocusMQTT",
-                        "Error suscribiendo a estado",
-                        error
-                    )
-
-                } else {
-
-                    Log.d(
-                        "REFocusMQTT",
-                        "Suscrito al tópico estado"
-                    )
-                }
-            }
     }
 
-    // --------------------------------
-    // ENVIAR COMANDO
-    // --------------------------------
+    private fun suscribirseAAlertas() {
+        val mqttClient = client ?: return
+
+        mqttClient.subscribeWith()
+            .topicFilter(TOPIC_ALERTAS)
+            .qos(MqttQos.AT_LEAST_ONCE)
+            .callback { publish ->
+                try {
+                    val buffer = publish.payload.orElse(null) ?: return@callback
+                    val mensaje = StandardCharsets.UTF_8.decode(buffer).toString()
+                    val json = JSONObject(mensaje)
+
+                    if (json.optString("alerta") == "vibracion") {
+                        val uid = json.optString("uid").takeIf { it.isNotBlank() && it != "null" }
+                        mainHandler.post {
+                            onAlertaRecibida?.invoke(uid)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("REFocusMQTT", "Error leyendo alerta", e)
+                }
+            }
+            .send()
+    }
 
     fun enviarComando(
         comando: String,
+        uid: String? = null,
         onResult: (Boolean) -> Unit = {}
     ) {
-
         if (!conectado) {
-
-            Log.e(
-                "REFocusMQTT",
-                "No conectado. No se puede enviar $comando"
-            )
-
-            mainHandler.post {
-                onResult(false)
-            }
-
+            mainHandler.post { onResult(false) }
             return
         }
 
-        val mqttClient =
-            client ?: return
+        val mqttClient = client ?: run {
+            mainHandler.post { onResult(false) }
+            return
+        }
 
-        val mensaje =
-            JSONObject()
-                .put(
-                    "comando",
-                    comando
-                )
-                .toString()
+        val json = JSONObject().put("comando", comando)
+        if (!uid.isNullOrBlank()) {
+            json.put("uid", uid)
+        }
 
-        mqttClient
-            .publishWith()
+        val mensaje = json.toString()
 
-            .topic(
-                TOPIC_COMANDOS
-            )
-
-            .qos(
-                MqttQos.AT_LEAST_ONCE
-            )
-
-            .payload(
-                mensaje.toByteArray(
-                    StandardCharsets.UTF_8
-                )
-            )
-
+        mqttClient.publishWith()
+            .topic(TOPIC_COMANDOS)
+            .qos(MqttQos.AT_LEAST_ONCE)
+            .payload(mensaje.toByteArray(StandardCharsets.UTF_8))
             .send()
             .whenComplete { _, error ->
-
-                if (error != null) {
-
-                    Log.e(
-                        "REFocusMQTT",
-                        "Error enviando comando $comando",
-                        error
-                    )
-
-                    mainHandler.post {
-                        onResult(false)
-                    }
-
-                } else {
-
-                    Log.d(
-                        "REFocusMQTT",
-                        "Comando enviado: $mensaje"
-                    )
-
-                    mainHandler.post {
-                        onResult(true)
-                    }
+                mainHandler.post {
+                    onResult(error == null)
                 }
             }
     }
-
-    // --------------------------------
-    // DESCONECTAR
-    // --------------------------------
 
     fun desconectar() {
-
-        client
-            ?.disconnect()
-            ?.whenComplete { _, _ ->
-
-                conectado = false
-
-                mainHandler.post {
-
-                    onConexionCambiada
-                        ?.invoke(false)
-                }
+        client?.disconnect()?.whenComplete { _, _ ->
+            conectado = false
+            mainHandler.post {
+                onConexionCambiada?.invoke(false)
             }
+        }
     }
 
-    fun estaConectado(): Boolean {
-
-        return conectado
-    }
+    fun estaConectado(): Boolean = conectado
 }

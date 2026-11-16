@@ -1,8 +1,6 @@
 package com.example.refocus
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,816 +25,177 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun StatsScreen(
-    onHomeClick: () -> Unit
+    onHomeClick: () -> Unit,
+    onHabitsClick: () -> Unit,
+    onTipsClick: () -> Unit
 ) {
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
+    var cargando by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var sesiones by remember { mutableStateOf<List<AnalyticsSession>>(emptyList()) }
 
-    var cargando by remember {
-        mutableStateOf(true)
+    LaunchedEffect(uid) {
+        if (uid == null) {
+            cargando = false
+            error = "No se encontró el usuario."
+        } else {
+            AnalyticsRepository.cargarSesionesUsuario(
+                uid = uid,
+                onSuccess = {
+                    sesiones = it
+                    cargando = false
+                },
+                onError = {
+                    error = "No se pudieron cargar las estadísticas."
+                    cargando = false
+                }
+            )
+        }
     }
 
-    var error by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    var datos by remember {
-        mutableStateOf(
-            ThingsBoardStats()
-        )
-    }
-
-    // =========================================================
-    // CARGAR DATOS DE THINGSBOARD
-    // =========================================================
-
-    LaunchedEffect(Unit) {
-
-        cargando =
-            true
-
-        error =
-            null
-
-        ThingsBoardRepository
-            .cargarUltimosSieteDias()
-            .onSuccess {
-
-                datos =
-                    it
-
-                cargando =
-                    false
-            }
-            .onFailure {
-
-                error =
-                    it.message
-                        ?: "No se pudieron cargar los datos"
-
-                cargando =
-                    false
-            }
-    }
-
-    Surface(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        color =
-            Color(0xFFF7F5FC)
-    ) {
-
+    Surface(Modifier.fillMaxSize(), color = Color(0xFFF7F5FC)) {
         Column(
-            modifier =
-                Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 28.dp, bottom = 12.dp)
         ) {
-
-            // =================================================
-            // ENCABEZADO
-            // =================================================
-
             Text(
-                text =
-                    "Tus estadísticas",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                color =
-                    Color(0xFF1D427A),
-
-                modifier =
-                    Modifier.padding(
-                        start = 24.dp,
-                        end = 24.dp,
-                        top = 28.dp,
-                        bottom = 6.dp
-                    )
+                "Tus estadísticas",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1D427A)
             )
-
             Text(
-                text =
-                    "Señales registradas por ReFocus.",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    Color(0xFF686878),
-
-                modifier =
-                    Modifier.padding(
-                        start = 24.dp,
-                        end = 24.dp,
-                        bottom = 16.dp
-                    )
+                "Un resumen sencillo de tus sesiones.",
+                color = Color(0xFF686878)
             )
+            Spacer(Modifier.height(18.dp))
 
-            // =================================================
-            // CONTENIDO
-            // =================================================
-
-            Box(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
             ) {
-
                 when {
-
-                    // -----------------------------------------
-                    // CARGANDO
-                    // -----------------------------------------
-
                     cargando -> {
-
                         Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(24.dp),
-
-                            horizontalAlignment =
-                                Alignment.CenterHorizontally,
-
-                            verticalArrangement =
-                                Arrangement.Center
+                            modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-
-                            CircularProgressIndicator(
-                                color =
-                                    Color(0xFF6755CE)
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(16.dp)
-                            )
-
-                            Text(
-                                text =
-                                    "Cargando datos de ThingsBoard...",
-
-                                color =
-                                    Color(0xFF686878)
-                            )
+                            CircularProgressIndicator(color = Color(0xFF6755CE))
                         }
                     }
-
-                    // -----------------------------------------
-                    // ERROR
-                    // -----------------------------------------
 
                     error != null -> {
-
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .padding(24.dp),
-
-                            horizontalAlignment =
-                                Alignment.CenterHorizontally,
-
-                            verticalArrangement =
-                                Arrangement.Center
-                        ) {
-
-                            Text(
-                                text =
-                                    "No pudimos cargar las estadísticas.",
-
-                                fontWeight =
-                                    FontWeight.SemiBold,
-
-                                color =
-                                    Color(0xFF1D427A)
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(8.dp)
-                            )
-
-                            Text(
-                                text =
-                                    error.orEmpty(),
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .bodySmall,
-
-                                color =
-                                    Color(0xFF686878)
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(18.dp)
-                            )
-
-                            Button(
-                                onClick = {
-
-                                    cargando =
-                                        true
-
-                                    error =
-                                        null
-                                }
-                            ) {
-
-                                Text(
-                                    "Volver a intentar"
-                                )
-                            }
-                        }
+                        Text(error.orEmpty(), color = Color(0xFF686878))
                     }
 
-                    // -----------------------------------------
-                    // DATOS
-                    // -----------------------------------------
+                    sesiones.isEmpty() -> {
+                        Text("Aún no tienes sesiones analizadas.", color = Color(0xFF686878))
+                    }
 
                     else -> {
+                        val ultima = sesiones.first()
+                        Text(
+                            "Última sesión",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
+                        )
+                        Spacer(Modifier.height(10.dp))
 
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(
-                                        rememberScrollState()
-                                    )
-                                    .padding(
-                                        horizontal = 20.dp
-                                    )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            MetricCard("Duración", formatearDuracion(ultima.duracionS), Modifier.weight(1f))
+                            MetricCard("Posibles distracciones", ultima.nDistracciones.toString(), Modifier.weight(1f))
+                        }
 
-                            ChartCard(
-                                titulo =
-                                    "Frecuencia cardiaca",
+                        Spacer(Modifier.height(10.dp))
 
-                                subtitulo =
-                                    "BPM",
-
-                                puntos =
-                                    datos.bpm,
-
-                                colorLinea =
-                                    Color(0xFF6755CE),
-
-                                decimales =
-                                    1
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            MetricCard("Alertas", ultima.nAlertas.toString(), Modifier.weight(1f))
+                            MetricCard(
+                                "Tasa de enfoque",
+                                ultima.tasaEnfoque?.let { "${it.toInt()} %" } ?: "-",
+                                Modifier.weight(1f)
                             )
+                        }
 
-                            Spacer(
-                                modifier =
-                                    Modifier.height(16.dp)
-                            )
+                        Spacer(Modifier.height(22.dp))
+                        Text(
+                            "Sesiones recientes",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
+                        )
+                        Spacer(Modifier.height(8.dp))
 
-                            ChartCard(
-                                titulo =
-                                    "Respuesta galvánica",
-
-                                subtitulo =
-                                    "Voltaje GSR",
-
-                                puntos =
-                                    datos.gsr,
-
-                                colorLinea =
-                                    Color(0xFF1D427A),
-
-                                decimales =
-                                    3
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(16.dp)
-                            )
-
-                            ChartCard(
-                                titulo =
-                                    "Movimiento",
-
-                                subtitulo =
-                                    "Nivel de movimiento",
-
-                                puntos =
-                                    datos.movimiento,
-
-                                colorLinea =
-                                    Color(0xFF6755CE),
-
-                                decimales =
-                                    4
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(20.dp)
-                            )
+                        sesiones.take(6).forEach { sesion ->
+                            SessionRow(sesion)
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
             }
 
-            // =================================================
-            // NAVEGACIÓN INFERIOR
-            // =================================================
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 12.dp,
-                            vertical = 8.dp
-                        ),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                BottomItem(
-                    texto =
-                        "Inicio",
-
-                    onClick =
-                        onHomeClick
-                )
-
-                BottomItem(
-                    texto =
-                        "Stats",
-
-                    seleccionado =
-                        true
-                )
-
-                BottomItem(
-                    texto =
-                        "Hábitos"
-                )
-
-                BottomItem(
-                    texto =
-                        "Consejos"
-                )
-            }
+            ReFocusBottomBar(
+                selected = "stats",
+                onHome = onHomeClick,
+                onStats = {},
+                onHabits = onHabitsClick,
+                onTips = onTipsClick
+            )
         }
     }
 }
 
-// =============================================================
-// TARJETA DE GRÁFICA
-// =============================================================
-
 @Composable
-private fun ChartCard(
-    titulo: String,
-    subtitulo: String,
-    puntos: List<TelemetryPoint>,
-    colorLinea: Color,
-    decimales: Int
-) {
-
+private fun SessionRow(sesion: AnalyticsSession) {
     Card(
-        modifier =
-            Modifier.fillMaxWidth(),
-
-        shape =
-            RoundedCornerShape(20.dp),
-
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    Color.White
-            )
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
-            Text(
-                text =
-                    titulo,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                color =
-                    Color(0xFF1D427A)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(2.dp)
-            )
-
-            Text(
-                text =
-                    subtitulo,
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodySmall,
-
-                color =
-                    Color(0xFF686878)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            if (
-                puntos.isEmpty()
-            ) {
-
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(170.dp),
-
-                    contentAlignment =
-                        Alignment.Center
-                ) {
-
-                    Text(
-                        text =
-                            "Sin datos disponibles",
-
-                        color =
-                            Color(0xFF8A8A99)
-                    )
-                }
-
-            } else {
-
-                val ultimo =
-                    puntos.last()
-
-                val formato =
-                    "%.${decimales}f"
-
+            Column {
                 Text(
-                    text =
-                        String.format(
-                            Locale.getDefault(),
-                            formato,
-                            ultimo.value
-                        ),
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .headlineSmall,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
-
-                    color =
-                        colorLinea
+                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(sesion.inicioMillis)),
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1D427A)
                 )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(10.dp)
-                )
-
-                LineChart(
-                    puntos =
-                        puntos,
-
-                    colorLinea =
-                        colorLinea
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(6.dp)
-                )
-
-                Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-
-                    horizontalArrangement =
-                        Arrangement.SpaceBetween
-                ) {
-
-                    Text(
-                        text =
-                            formatearFecha(
-                                puntos.first().ts
-                            ),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelSmall,
-
-                        color =
-                            Color(0xFF8A8A99)
-                    )
-
-                    Text(
-                        text =
-                            formatearFecha(
-                                puntos.last().ts
-                            ),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .labelSmall,
-
-                        color =
-                            Color(0xFF8A8A99)
-                    )
-                }
+                Text(formatearDuracion(sesion.duracionS), color = Color(0xFF686878))
             }
+            Text(
+                "${sesion.nDistracciones} distr.",
+                color = Color(0xFF6755CE),
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
 
-// =============================================================
-// GRÁFICA NATIVA
-// =============================================================
-
-@Composable
-private fun LineChart(
-    puntos: List<TelemetryPoint>,
-    colorLinea: Color
-) {
-
-    Canvas(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-    ) {
-
-        if (
-            puntos.isEmpty()
-        ) {
-
-            return@Canvas
-        }
-
-        val margen =
-            14f
-
-        val ancho =
-            size.width -
-                    (2f * margen)
-
-        val alto =
-            size.height -
-                    (2f * margen)
-
-        // -----------------------------------------------------
-        // LÍNEAS DE FONDO
-        // -----------------------------------------------------
-
-        val colorCuadricula =
-            Color(0xFFE8E6EF)
-
-        for (
-        i in 0..3
-        ) {
-
-            val y =
-                margen +
-                        (
-                                alto *
-                                        i /
-                                        3f
-                                )
-
-            drawLine(
-                color =
-                    colorCuadricula,
-
-                start =
-                    Offset(
-                        margen,
-                        y
-                    ),
-
-                end =
-                    Offset(
-                        size.width -
-                                margen,
-                        y
-                    ),
-
-                strokeWidth =
-                    1.5f
-            )
-        }
-
-        // -----------------------------------------------------
-        // RANGO Y
-        // -----------------------------------------------------
-
-        val minimo =
-            puntos.minOf {
-                it.value
-            }
-
-        val maximo =
-            puntos.maxOf {
-                it.value
-            }
-
-        val rango =
-            if (
-                maximo - minimo <
-                0.000001f
-            ) {
-
-                1f
-
-            } else {
-
-                maximo - minimo
-            }
-
-        // -----------------------------------------------------
-        // RANGO X
-        // -----------------------------------------------------
-
-        val primerTs =
-            puntos.first().ts
-
-        val ultimoTs =
-            puntos.last().ts
-
-        val rangoTs =
-            if (
-                ultimoTs == primerTs
-            ) {
-
-                1L
-
-            } else {
-
-                ultimoTs -
-                        primerTs
-            }
-
-        // -----------------------------------------------------
-        // UN SOLO PUNTO
-        // -----------------------------------------------------
-
-        if (
-            puntos.size == 1
-        ) {
-
-            drawCircle(
-                color =
-                    colorLinea,
-
-                radius =
-                    6f,
-
-                center =
-                    Offset(
-                        size.width / 2f,
-                        size.height / 2f
-                    )
-            )
-
-            return@Canvas
-        }
-
-        // -----------------------------------------------------
-        // CAMINO DE LA GRÁFICA
-        // -----------------------------------------------------
-
-        val path =
-            Path()
-
-        puntos.forEachIndexed {
-                index,
-                punto ->
-
-            val porcentajeX =
-                (
-                        punto.ts -
-                                primerTs
-                        ).toFloat() /
-                        rangoTs.toFloat()
-
-            val porcentajeY =
-                (
-                        punto.value -
-                                minimo
-                        ) /
-                        rango
-
-            val x =
-                margen +
-                        (
-                                porcentajeX *
-                                        ancho
-                                )
-
-            val y =
-                margen +
-                        alto -
-                        (
-                                porcentajeY *
-                                        alto
-                                )
-
-            if (
-                index == 0
-            ) {
-
-                path.moveTo(
-                    x,
-                    y
-                )
-
-            } else {
-
-                path.lineTo(
-                    x,
-                    y
-                )
-            }
-        }
-
-        drawPath(
-            path =
-                path,
-
-            color =
-                colorLinea,
-
-            style =
-                Stroke(
-                    width = 4f,
-                    cap = StrokeCap.Round
-                )
-        )
-    }
-}
-
-// =============================================================
-// FORMATO DE FECHA
-// =============================================================
-
-private fun formatearFecha(
-    timestamp: Long
-): String {
-
-    val formatter =
-        SimpleDateFormat(
-            "dd/MM HH:mm",
-            Locale.getDefault()
-        )
-
-    return formatter.format(
-        Date(timestamp)
-    )
+fun formatearDuracion(segundos: Int): String {
+    val min = segundos / 60
+    val seg = segundos % 60
+    return if (min == 0) "${seg}s" else "${min}m ${seg}s"
 }

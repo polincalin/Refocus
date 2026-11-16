@@ -46,6 +46,7 @@ object SessionRepository {
             "duracionSegundos" to 0L,
             "estado" to "activa",
             "origen" to "android",
+            "interrupcionesDigitales" to 0L,
             "createdAt" to FieldValue.serverTimestamp()
         )
 
@@ -339,6 +340,32 @@ object SessionRepository {
                         hayUltimaSesion =
                             ultima != null
                     )
+                )
+            }
+    }
+
+
+    // =========================================================
+    // REGISTRAR CAMBIO HACIA OTRA APP DURANTE LA SESIÓN
+    // =========================================================
+
+    fun registrarInterrupcionDigital(
+        uid: String,
+        sessionId: String
+    ) {
+        db.collection("usuarios")
+            .document(uid)
+            .collection("sesiones")
+            .document(sessionId)
+            .update(
+                "interrupcionesDigitales",
+                FieldValue.increment(1)
+            )
+            .addOnFailureListener { exception ->
+                Log.e(
+                    TAG,
+                    "No se pudo registrar la interrupción digital",
+                    exception
                 )
             }
     }

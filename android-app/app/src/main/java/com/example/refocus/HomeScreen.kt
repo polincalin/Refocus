@@ -1,9 +1,12 @@
 package com.example.refocus
 
+import android.content.Intent
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -35,9 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import java.util.Locale
 
@@ -45,36 +48,43 @@ import java.util.Locale
 fun HomeScreen(
     onStartStudySession: () -> Unit,
     onStatsClick: () -> Unit,
+    onHabitsClick: () -> Unit,
+    onTipsClick: () -> Unit,
     onLogout: () -> Unit
 ) {
 
     val context = LocalContext.current
-
-    val auth = remember {
-        FirebaseAuth.getInstance()
-    }
+    val auth = remember { FirebaseAuth.getInstance() }
 
     val usuario = auth.currentUser
     val uid = usuario?.uid
 
-    // --------------------------------
-    // NOMBRE DEL USUARIO
-    // --------------------------------
-
     val nombreCompleto =
-        usuario?.displayName
-            ?.takeIf { it.isNotBlank() }
+        usuario?.displayName?.takeIf { it.isNotBlank() }
             ?: usuario?.email?.substringBefore("@")
             ?: "Usuario"
 
-    val nombre =
-        nombreCompleto
-            .trim()
-            .substringBefore(" ")
+    val nombre = nombreCompleto.trim().substringBefore(" ")
 
-    // --------------------------------
-    // DATOS DE FIRESTORE
-    // --------------------------------
+    // ---------------------------------------------------------
+    // PERMISO DE USO DE APLICACIONES
+    // ---------------------------------------------------------
+
+    var permisoUso by remember {
+        mutableStateOf(UsageAccessHelper.tienePermiso(context))
+    }
+
+    val launcherPermisoUso =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) {
+            // Se ejecuta cuando el usuario vuelve desde Ajustes
+            permisoUso = UsageAccessHelper.tienePermiso(context)
+        }
+
+    // ---------------------------------------------------------
+    // ESTADÍSTICAS DEL USUARIO
+    // ---------------------------------------------------------
 
     var tiempoTotalSegundos by remember {
         mutableIntStateOf(0)
@@ -92,8 +102,6 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
-    // Escuchamos las sesiones reales
-    // guardadas para este usuario.
     DisposableEffect(uid) {
 
         if (uid == null) {
@@ -102,65 +110,56 @@ fun HomeScreen(
 
         } else {
 
-            val listener =
-                SessionRepository.escucharHome(
+            val listener = SessionRepository.escucharHome(
 
-                    uid = uid,
+                uid = uid,
 
-                    onUpdate = { stats ->
+                onUpdate = { stats ->
 
-                        tiempoTotalSegundos =
-                            stats.tiempoTotalSegundos
+                    tiempoTotalSegundos =
+                        stats.tiempoTotalSegundos
 
-                        cantidadSesiones =
-                            stats.cantidadSesiones
+                    cantidadSesiones =
+                        stats.cantidadSesiones
 
-                        duracionUltimaSesion =
-                            stats.duracionUltimaSesion
+                    duracionUltimaSesion =
+                        stats.duracionUltimaSesion
 
-                        hayUltimaSesion =
-                            stats.hayUltimaSesion
-                    },
+                    hayUltimaSesion =
+                        stats.hayUltimaSesion
+                },
 
-                    onError = {
+                onError = {
 
-                        Toast.makeText(
-                            context,
-                            "No se pudieron cargar las sesiones",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
+                    Toast.makeText(
+                        context,
+                        "No se pudieron cargar las sesiones",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            )
 
             onDispose {
-
                 listener.remove()
             }
         }
     }
 
-    // --------------------------------
-    // ESTADO MQTT
-    // --------------------------------
+    // ---------------------------------------------------------
+    // MQTT
+    // ---------------------------------------------------------
 
     var conectadoMQTT by remember {
-
-        mutableStateOf(
-            MqttManager.estaConectado()
-        )
+        mutableStateOf(MqttManager.estaConectado())
     }
 
     var estadoWearable by remember {
 
         mutableStateOf(
-            if (conectadoMQTT) {
-
+            if (conectadoMQTT)
                 "Conectado, esperando al wearable..."
-
-            } else {
-
+            else
                 "Conectando..."
-            }
         )
     }
 
@@ -168,52 +167,39 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
-    // --------------------------------
-    // CONEXIÓN MQTT
-    // --------------------------------
-
     DisposableEffect(Unit) {
 
         MqttManager.onConexionCambiada = { conectado ->
 
             conectadoMQTT = conectado
 
-            if (conectado) {
-
-                if (
-                    estadoWearable == "Conectando..." ||
-                    estadoWearable.startsWith(
-                        "Sin conexión"
-                    )
-                ) {
-
-                    estadoWearable =
-                        "Conectado, esperando al wearable..."
-                }
-
-            } else {
+            if (!conectado) {
 
                 estadoWearable =
                     "Sin conexión con el servidor"
 
                 esperandoInicio = false
+
+            } else if (
+                estadoWearable == "Conectando..." ||
+                estadoWearable.startsWith("Sin conexión")
+            ) {
+
+                estadoWearable =
+                    "Conectado, esperando al wearable..."
             }
         }
 
         MqttManager.onEstadoRecibido = { nuevoEstado ->
 
-            estadoWearable =
-                nuevoEstado
+            estadoWearable = nuevoEstado
 
-            // Solo entramos a la sesión cuando
-            // la Raspberry confirma el inicio.
             if (
                 esperandoInicio &&
                 nuevoEstado == "Sesión en curso"
             ) {
 
-                esperandoInicio =
-                    false
+                esperandoInicio = false
 
                 onStartStudySession()
             }
@@ -223,108 +209,69 @@ fun HomeScreen(
 
         onDispose {
 
-            MqttManager.onConexionCambiada =
-                null
+            MqttManager.onConexionCambiada = null
 
-            MqttManager.onEstadoRecibido =
-                null
+            MqttManager.onEstadoRecibido = null
         }
     }
 
-    // --------------------------------
-    // CONDICIONES DEL WEARABLE
-    // --------------------------------
+    // ---------------------------------------------------------
+    // ESTADO DEL WEARABLE
+    // ---------------------------------------------------------
 
     val desconectado =
         !conectadoMQTT ||
-                estadoWearable ==
-                "Wearable desconectado"
+                estadoWearable == "Wearable desconectado"
 
     val ocupado =
-        estadoWearable.startsWith(
-            "Calibrando"
-        ) ||
-                estadoWearable.startsWith(
-                    "Preparando"
-                )
+        estadoWearable.startsWith("Calibrando") ||
+                estadoWearable.startsWith("Preparando")
 
     val enSesion =
-        estadoWearable ==
-                "Sesión en curso"
+        estadoWearable == "Sesión en curso"
 
-    // --------------------------------
-    // FORMATO TIEMPO SEMANAL
-    // --------------------------------
+    // ---------------------------------------------------------
+    // TEXTO DE TIEMPO
+    // ---------------------------------------------------------
 
     val tiempoSemana = when {
 
-        tiempoTotalSegundos < 60 -> {
-
+        tiempoTotalSegundos < 60 ->
             "$tiempoTotalSegundos s"
-        }
 
-        tiempoTotalSegundos < 3600 -> {
-
+        tiempoTotalSegundos < 3600 ->
             "${tiempoTotalSegundos / 60} min"
-        }
 
         else -> {
 
-            val horas =
+            val h =
                 tiempoTotalSegundos / 3600
 
-            val minutos =
+            val m =
                 (tiempoTotalSegundos % 3600) / 60
 
-            if (minutos == 0) {
-
-                "$horas h"
-
-            } else {
-
-                "$horas h $minutos min"
-            }
+            if (m == 0)
+                "$h h"
+            else
+                "$h h $m min"
         }
     }
-
-    // --------------------------------
-    // FORMATO ÚLTIMA SESIÓN
-    // --------------------------------
-
-    val minutosUltima =
-        duracionUltimaSesion / 60
-
-    val segundosUltima =
-        duracionUltimaSesion % 60
 
     val ultimaSesionTexto =
         String.format(
             Locale.getDefault(),
             "%02d:%02d",
-            minutosUltima,
-            segundosUltima
+            duracionUltimaSesion / 60,
+            duracionUltimaSesion % 60
         )
 
-    val textoSesiones =
-        if (cantidadSesiones == 1) {
-
-            "sesión"
-
-        } else {
-
-            "sesiones"
-        }
-
-    // --------------------------------
+    // ---------------------------------------------------------
     // INTERFAZ
-    // --------------------------------
+    // ---------------------------------------------------------
 
     Surface(
-        modifier =
-            Modifier.fillMaxSize(),
-
-        color =
-            Color(0xFFF7F5FC)
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFFF7F5FC)
     ) {
 
         Column(
@@ -332,609 +279,411 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
                 .padding(
-                    top = 28.dp,
-                    bottom = 18.dp
+                    top = 24.dp,
+                    bottom = 12.dp
                 )
         ) {
 
-            // --------------------------------
-            // ENCABEZADO
-            // --------------------------------
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                verticalAlignment =
-                    Alignment.CenterVertically,
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween
-            ) {
-
-                Image(
-                    painter =
-                        painterResource(
-                            id = R.drawable.logo
-                        ),
-
-                    contentDescription =
-                        "Logo ReFocus",
-
-                    modifier =
-                        Modifier.width(115.dp),
-
-                    contentScale =
-                        ContentScale.Fit
-                )
-
-                TextButton(
-                    onClick = {
-
-                        MqttManager.desconectar()
-
-                        auth.signOut()
-
-                        onLogout()
-                    }
-                ) {
-
-                    Text(
-                        text =
-                            "Cerrar sesión",
-
-                        color =
-                            Color(0xFF6755CE),
-
-                        fontWeight =
-                            FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(28.dp)
-            )
-
-            // --------------------------------
-            // SALUDO
-            // --------------------------------
-
-            Text(
-                text =
-                    "Hola, $nombre 👋",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineSmall,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                color =
-                    Color(0xFF1D427A)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(4.dp)
-            )
-
-            Text(
-                text =
-                    "¿Lista para concentrarte?",
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    Color(0xFF686878)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(22.dp)
-            )
-
-            // --------------------------------
-            // ESTADO DEL WEARABLE
-            // --------------------------------
-
-            Card(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                shape =
-                    RoundedCornerShape(18.dp),
-
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor =
-                            Color.White
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(
+                        rememberScrollState()
                     )
             ) {
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp)
+                // -------------------------------------------------
+                // HEADER
+                // -------------------------------------------------
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment =
+                        Alignment.CenterVertically,
+                    horizontalArrangement =
+                        Arrangement.SpaceBetween
                 ) {
 
-                    Text(
-                        text =
-                            "Estado del wearable",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleSmall,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            Color(0xFF1D427A)
-                    )
-
-                    Spacer(
+                    Image(
+                        painter =
+                            painterResource(
+                                id = R.drawable.logo
+                            ),
+                        contentDescription =
+                            "Logo ReFocus",
                         modifier =
-                            Modifier.height(6.dp)
+                            Modifier.width(115.dp),
+                        contentScale =
+                            ContentScale.Fit
                     )
 
-                    Text(
-                        text =
-                            estadoWearable,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodyMedium,
-
-                        color =
-                            Color(0xFF686878)
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(14.dp)
-                    )
-
-                    Button(
+                    TextButton(
                         onClick = {
 
-                            MqttManager.enviarComando(
-                                "calibrar"
-                            ) { enviado ->
+                            MqttManager.desconectar()
 
-                                if (!enviado) {
+                            auth.signOut()
 
-                                    Toast.makeText(
-                                        context,
-                                        "No se pudo enviar el comando",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        },
+                            onLogout()
+                        }
+                    ) {
 
-                        enabled =
-                            !desconectado &&
-                                    !ocupado &&
-                                    !enSesion &&
-                                    !esperandoInicio,
+                        Text(
+                            "Cerrar sesión",
+                            color = Color(0xFF6755CE)
+                        )
+                    }
+                }
 
+                Spacer(
+                    Modifier.height(24.dp)
+                )
+
+                Text(
+                    text = "Hola, $nombre 👋",
+                    style =
+                        MaterialTheme.typography
+                            .headlineSmall,
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        Color(0xFF1D427A)
+                )
+
+                Text(
+                    text =
+                        "Prepara tu próxima sesión de estudio.",
+                    color =
+                        Color(0xFF686878)
+                )
+
+                Spacer(
+                    Modifier.height(20.dp)
+                )
+
+                // -------------------------------------------------
+                // WEARABLE
+                // -------------------------------------------------
+
+                Card(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    shape =
+                        RoundedCornerShape(20.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor =
+                                Color.White
+                        )
+                ) {
+
+                    Column(
+                        Modifier.padding(18.dp)
+                    ) {
+
+                        Text(
+                            "Wearable",
+                            fontWeight =
+                                FontWeight.SemiBold,
+                            color =
+                                Color(0xFF1D427A)
+                        )
+
+                        Text(
+                            estadoWearable,
+                            color =
+                                Color(0xFF686878)
+                        )
+
+                        Spacer(
+                            Modifier.height(12.dp)
+                        )
+
+                        Button(
+                            onClick = {
+
+                                MqttManager
+                                    .enviarComando(
+                                        "calibrar"
+                                    )
+                            },
+
+                            enabled =
+                                !desconectado &&
+                                        !ocupado &&
+                                        !enSesion &&
+                                        !esperandoInicio,
+
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            colors =
+                                ButtonDefaults
+                                    .buttonColors(
+                                        containerColor =
+                                            Color(0xFF1D427A)
+                                    )
+                        ) {
+
+                            Text(
+                                "Calibrar wearable"
+                            )
+                        }
+                    }
+                }
+
+                // -------------------------------------------------
+                // PERMISO CAMBIO DE APLICACIONES
+                // -------------------------------------------------
+
+                if (!permisoUso) {
+
+                    Spacer(
+                        Modifier.height(14.dp)
+                    )
+
+                    Card(
                         modifier =
                             Modifier.fillMaxWidth(),
-
+                        shape =
+                            RoundedCornerShape(18.dp),
                         colors =
-                            ButtonDefaults.buttonColors(
+                            CardDefaults.cardColors(
                                 containerColor =
+                                    Color(0xFFF0ECFF)
+                            )
+                    ) {
+
+                        Column(
+                            Modifier.padding(16.dp)
+                        ) {
+
+                            Text(
+                                "Detección de cambios de app",
+                                fontWeight =
+                                    FontWeight.SemiBold,
+                                color =
                                     Color(0xFF1D427A)
-                            ),
-
-                        shape =
-                            RoundedCornerShape(
-                                12.dp
                             )
-                    ) {
 
-                        Text(
-                            text =
-                                "Calibrar wearable"
-                        )
-                    }
-                }
-            }
+                            Text(
+                                "Activa el acceso de uso para registrar cuando sales de ReFocus durante una sesión.",
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
+                                color =
+                                    Color(0xFF686878)
+                            )
 
-            Spacer(
-                modifier =
-                    Modifier.height(18.dp)
-            )
+                            TextButton(
+                                onClick = {
 
-            // --------------------------------
-            // SESIÓN DE ESTUDIO
-            // --------------------------------
+                                    val intent =
+                                        Intent(
+                                            Settings
+                                                .ACTION_USAGE_ACCESS_SETTINGS
+                                        )
 
-            Card(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                shape =
-                    RoundedCornerShape(22.dp),
-
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor =
-                            Color.White
-                    )
-            ) {
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(22.dp),
-
-                    horizontalAlignment =
-                        Alignment.CenterHorizontally
-                ) {
-
-                    Text(
-                        text =
-                            "Sesión de estudio",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .titleMedium,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            Color(0xFF1D427A)
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(12.dp)
-                    )
-
-                    Text(
-                        text = "00:00",
-
-                        fontSize = 34.sp,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            Color(0xFF6755CE)
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.height(18.dp)
-                    )
-
-                    Button(
-                        onClick = {
-
-                            esperandoInicio =
-                                true
-
-                            MqttManager.enviarComando(
-                                "iniciar"
-                            ) { enviado ->
-
-                                if (!enviado) {
-
-                                    esperandoInicio =
-                                        false
-
-                                    Toast.makeText(
-                                        context,
-                                        "No se pudo iniciar el wearable",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    launcherPermisoUso
+                                        .launch(intent)
                                 }
+                            ) {
+
+                                Text(
+                                    "Dar permiso",
+                                    color =
+                                        Color(0xFF6755CE)
+                                )
                             }
-                        },
+                        }
+                    }
+                }
 
-                        enabled =
-                            !desconectado &&
-                                    !ocupado &&
-                                    !enSesion &&
-                                    !esperandoInicio,
+                Spacer(
+                    Modifier.height(14.dp)
+                )
 
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
+                // -------------------------------------------------
+                // INICIAR SESIÓN
+                // -------------------------------------------------
 
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor =
-                                    Color(0xFF6755CE)
-                            ),
+                Card(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    shape =
+                        RoundedCornerShape(22.dp),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor =
+                                Color.White
+                        )
+                ) {
 
-                        shape =
-                            RoundedCornerShape(
-                                14.dp
-                            )
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(22.dp),
+
+                        horizontalAlignment =
+                            Alignment.CenterHorizontally
                     ) {
 
                         Text(
-                            text =
-                                if (
-                                    esperandoInicio
-                                ) {
-
-                                    "Esperando al wearable..."
-
-                                } else {
-
-                                    "Iniciar sesión de estudio"
-                                },
-
+                            "Sesión de estudio",
                             fontWeight =
-                                FontWeight.Medium
+                                FontWeight.SemiBold,
+                            color =
+                                Color(0xFF1D427A)
                         )
+
+                        Spacer(
+                            Modifier.height(14.dp)
+                        )
+
+                        Button(
+
+                            onClick = {
+
+                                esperandoInicio = true
+
+                                MqttManager
+                                    .enviarComando(
+
+                                        comando =
+                                            "iniciar",
+
+                                        uid = uid
+
+                                    ) { enviado ->
+
+                                        if (!enviado) {
+
+                                            esperandoInicio =
+                                                false
+
+                                            Toast.makeText(
+                                                context,
+                                                "No se pudo iniciar el wearable",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                            },
+
+                            enabled =
+                                uid != null &&
+                                        !desconectado &&
+                                        !ocupado &&
+                                        !enSesion &&
+                                        !esperandoInicio,
+
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+
+                            colors =
+                                ButtonDefaults
+                                    .buttonColors(
+                                        containerColor =
+                                            Color(0xFF6755CE)
+                                    ),
+
+                            shape =
+                                RoundedCornerShape(14.dp)
+                        ) {
+
+                            Text(
+                                if (esperandoInicio)
+                                    "Esperando al wearable..."
+                                else
+                                    "Iniciar sesión de estudio"
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(
-                modifier =
-                    Modifier.height(22.dp)
-            )
+                Spacer(
+                    Modifier.height(20.dp)
+                )
 
-            // --------------------------------
-            // TU SEMANA
-            // --------------------------------
+                // -------------------------------------------------
+                // RESUMEN SEMANAL
+                // -------------------------------------------------
 
-            Text(
-                text =
+                Text(
                     "Tu semana",
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        Color(0xFF1D427A)
+                )
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
+                Spacer(
+                    Modifier.height(8.dp)
+                )
 
-                fontWeight =
-                    FontWeight.SemiBold,
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth(),
 
-                color =
-                    Color(0xFF1D427A)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(10.dp)
-            )
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween
-            ) {
-
-                Column {
-
-                    Text(
-                        text =
-                            tiempoSemana,
-
-                        fontSize =
-                            22.sp,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            Color(0xFF6755CE)
-                    )
-
-                    Text(
-                        text =
-                            "de estudio",
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-
-                        color =
-                            Color(0xFF686878)
-                    )
-                }
-
-                Column(
-                    horizontalAlignment =
-                        Alignment.End
+                    horizontalArrangement =
+                        Arrangement.spacedBy(12.dp)
                 ) {
 
-                    Text(
-                        text =
-                            cantidadSesiones
-                                .toString(),
-
-                        fontSize =
-                            22.sp,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-
-                        color =
-                            Color(0xFF6755CE)
+                    MetricCard(
+                        "Tiempo de estudio",
+                        tiempoSemana,
+                        Modifier.weight(1f)
                     )
 
-                    Text(
-                        text =
-                            textoSesiones,
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-
-                        color =
-                            Color(0xFF686878)
+                    MetricCard(
+                        "Sesiones",
+                        cantidadSesiones.toString(),
+                        Modifier.weight(1f)
                     )
                 }
-            }
 
-            Spacer(
-                modifier =
+                Spacer(
                     Modifier.height(18.dp)
-            )
+                )
 
-            // --------------------------------
-            // ÚLTIMA SESIÓN
-            // --------------------------------
-
-            Text(
-                text =
+                Text(
                     "Última sesión",
+                    fontWeight =
+                        FontWeight.SemiBold,
+                    color =
+                        Color(0xFF1D427A)
+                )
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleMedium,
-
-                fontWeight =
-                    FontWeight.SemiBold,
-
-                color =
-                    Color(0xFF1D427A)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(6.dp)
-            )
-
-            Text(
-                text =
-                    if (!hayUltimaSesion) {
-
+                Text(
+                    if (!hayUltimaSesion)
                         "Aún no tienes sesiones registradas"
+                    else
+                        "Duración: $ultimaSesionTexto",
 
-                    } else {
-
-                        "Duración: $ultimaSesionTexto"
-                    },
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .bodyMedium,
-
-                color =
-                    Color(0xFF686878)
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.weight(1f)
-            )
-
-            // --------------------------------
-            // NAVEGACIÓN INFERIOR
-            // --------------------------------
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-
-                horizontalArrangement =
-                    Arrangement.SpaceBetween,
-
-                verticalAlignment =
-                    Alignment.CenterVertically
-            ) {
-
-                BottomItem(
-                    texto =
-                        "Inicio",
-
-                    seleccionado =
-                        true
+                    color =
+                        Color(0xFF686878)
                 )
 
-                BottomItem(
-                    texto =
-                        "Stats",
-
-                    onClick =
-                        onStatsClick
-                )
-
-                BottomItem(
-                    texto =
-                        "Hábitos"
-                )
-
-                BottomItem(
-                    texto =
-                        "Consejos"
+                Spacer(
+                    Modifier.height(18.dp)
                 )
             }
+
+            // -----------------------------------------------------
+            // BARRA INFERIOR
+            // -----------------------------------------------------
+
+            ReFocusBottomBar(
+                selected = "home",
+                onHome = {},
+                onStats = onStatsClick,
+                onHabits = onHabitsClick,
+                onTips = onTipsClick
+            )
         }
-    }
-}
-
-
-// --------------------------------
-// BOTÓN DE NAVEGACIÓN INFERIOR
-// --------------------------------
-
-@Composable
-fun BottomItem(
-    texto: String,
-    seleccionado: Boolean = false,
-    onClick: () -> Unit = {}
-) {
-
-    TextButton(
-        onClick = onClick
-    ) {
-
-        Text(
-            text = texto,
-
-            style =
-                MaterialTheme
-                    .typography
-                    .labelMedium,
-
-            fontWeight =
-                if (seleccionado) {
-
-                    FontWeight.SemiBold
-
-                } else {
-
-                    FontWeight.Normal
-                },
-
-            color =
-                if (seleccionado) {
-
-                    Color(0xFF6755CE)
-
-                } else {
-
-                    Color(0xFF8A8A99)
-                },
-
-            textAlign =
-                TextAlign.Center
-        )
     }
 }

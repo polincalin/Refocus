@@ -43,39 +43,25 @@ fun LoginScreen(
     onRegisterClick: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
-
-    var email by remember {
-        mutableStateOf("")
-    }
-
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var cargando by remember {
-        mutableStateOf(false)
-    }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
+    var recuperando by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-
-    val auth = remember {
-        FirebaseAuth.getInstance()
-    }
+    val auth = remember { FirebaseAuth.getInstance() }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF7F5FC)
     ) {
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp),
-
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Logo ReFocus",
@@ -83,9 +69,7 @@ fun LoginScreen(
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(
-                modifier = Modifier.height(32.dp)
-            )
+            Spacer(Modifier.height(32.dp))
 
             Text(
                 text = "Inicia sesión",
@@ -94,9 +78,7 @@ fun LoginScreen(
                 color = Color(0xFF1D427A)
             )
 
-            Spacer(
-                modifier = Modifier.height(8.dp)
-            )
+            Spacer(Modifier.height(8.dp))
 
             Text(
                 text = "Continúa con tu cuenta de ReFocus",
@@ -104,23 +86,15 @@ fun LoginScreen(
                 color = Color(0xFF686878)
             )
 
-            Spacer(
-                modifier = Modifier.height(32.dp)
-            )
+            Spacer(Modifier.height(32.dp))
 
             OutlinedTextField(
                 value = email,
-                onValueChange = {
-                    email = it
-                },
-                label = {
-                    Text("Correo electrónico")
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email
-                ),
+                onValueChange = { email = it },
+                label = { Text("Correo electrónico") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                enabled = !cargando,
+                enabled = !cargando && !recuperando,
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6755CE),
@@ -129,21 +103,15 @@ fun LoginScreen(
                 )
             )
 
-            Spacer(
-                modifier = Modifier.height(16.dp)
-            )
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = password,
-                onValueChange = {
-                    password = it
-                },
-                label = {
-                    Text("Contraseña")
-                },
+                onValueChange = { password = it },
+                label = { Text("Contraseña") },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
-                enabled = !cargando,
+                enabled = !cargando && !recuperando,
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6755CE),
@@ -152,84 +120,88 @@ fun LoginScreen(
                 )
             )
 
-            Spacer(
-                modifier = Modifier.height(28.dp)
-            )
+            TextButton(
+                onClick = {
+                    val emailLimpio = email.trim()
+                    if (emailLimpio.isEmpty()) {
+                        Toast.makeText(
+                            context,
+                            "Escribe primero tu correo electrónico",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        recuperando = true
+                        auth.sendPasswordResetEmail(emailLimpio)
+                            .addOnCompleteListener { tarea ->
+                                recuperando = false
+                                if (tarea.isSuccessful) {
+                                    Toast.makeText(
+                                        context,
+                                        "Te enviamos un correo para restablecer tu contraseña",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "No se pudo enviar el correo de recuperación",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                    }
+                },
+                enabled = !cargando && !recuperando,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = if (recuperando) "Enviando..." else "¿Olvidaste tu contraseña?",
+                    color = Color(0xFF6755CE)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
 
             Button(
                 onClick = {
-
                     val emailLimpio = email.trim()
 
-                    if (
-                        emailLimpio.isEmpty() ||
-                        password.isEmpty()
-                    ) {
-
+                    if (emailLimpio.isEmpty() || password.isEmpty()) {
                         Toast.makeText(
                             context,
                             "Completa todos los campos",
                             Toast.LENGTH_SHORT
                         ).show()
-
                     } else {
-
                         cargando = true
-
-                        auth.signInWithEmailAndPassword(
-                            emailLimpio,
-                            password
-                        ).addOnCompleteListener { tarea ->
-
-                            cargando = false
-
-                            if (tarea.isSuccessful) {
-
-                                Toast.makeText(
-                                    context,
-                                    "Inicio de sesión correcto",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-
-                                onLoginSuccess()
-                            } else {
-
-                                Toast.makeText(
-                                    context,
-                                    tarea.exception?.message
-                                        ?: "No se pudo iniciar sesión",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                        auth.signInWithEmailAndPassword(emailLimpio, password)
+                            .addOnCompleteListener { tarea ->
+                                cargando = false
+                                if (tarea.isSuccessful) {
+                                    onLoginSuccess()
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "No se pudo iniciar sesión. Revisa tus datos.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
-                        }
                     }
                 },
-
-                enabled = !cargando,
-
+                enabled = !cargando && !recuperando,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6755CE)
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6755CE))
             ) {
-
                 Text(
-                    text = if (cargando) {
-                        "Iniciando sesión..."
-                    } else {
-                        "Iniciar sesión"
-                    },
+                    text = if (cargando) "Iniciando sesión..." else "Iniciar sesión",
                     fontWeight = FontWeight.Medium,
                     fontSize = 15.sp
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(18.dp)
-            )
+            Spacer(Modifier.height(18.dp))
 
             Text(
                 text = "¿No tienes una cuenta?",
@@ -238,11 +210,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            TextButton(
-                onClick = onRegisterClick,
-                enabled = !cargando
-            ) {
-
+            TextButton(onClick = onRegisterClick, enabled = !cargando && !recuperando) {
                 Text(
                     text = "Regístrate",
                     color = Color(0xFF6755CE),
