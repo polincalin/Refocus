@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 data class TelemetryPoint(
     val ts: Long,
@@ -28,29 +30,25 @@ object ThingsBoardRepository {
     private const val DEVICE_ID =
         "cd235bf0-bbb4-11f1-85db-879f857253db"
 
+
     // =========================================================
-    // CARGAR LOS DATOS MÁS RECIENTES
+    // CARGAR TELEMETRÍA DE UNA SESIÓN
     // =========================================================
 
-    suspend fun cargarUltimosSieteDias():
-            Result<ThingsBoardStats> =
+    suspend fun cargarIntervalo(
+        startTs: Long,
+        endTs: Long
+    ): Result<ThingsBoardStats> =
         withContext(Dispatchers.IO) {
 
             runCatching {
 
+                require(endTs > startTs) {
+                    "El intervalo de ThingsBoard no es válido."
+                }
+
                 val token =
                     obtenerTokenPublico()
-
-                val endTs =
-                    System.currentTimeMillis()
-
-                val startTs =
-                    endTs -
-                            (7L *
-                                    24L *
-                                    60L *
-                                    60L *
-                                    1000L)
 
                 val json =
                     obtenerTelemetria(
@@ -59,33 +57,96 @@ object ThingsBoardRepository {
                         endTs = endTs
                     )
 
-                ThingsBoardStats(
-                    bpm =
-                        leerSerie(
-                            json,
-                            "bpm"
-                        ),
 
-                    gsr =
-                        leerSerie(
-                            json,
-                            "gsr_voltage"
-                        ),
+                // BPM válido según la misma lógica
+                // usada por la Raspberry.
+                val bpm =
+                    leerSerie(
+                        json,
+                        "bpm"
+                    ).filter {
+                        it.value in 40f..200f
+                    }
+
+
+                // Voltaje GSR.
+                val gsr =
+                    leerSerie(
+                        json,
+                        "gsr_voltage"
+                    )
+
+
+                // La Raspberry NO publica una variable
+                // llamada "movimiento".
+                // Publica las tres aceleraciones.
+                val accelX =
+                    leerSerie(
+                        json,
+                        "accel_x"
+                    )
+
+                val accelY =
+                    leerSerie(
+                        json,
+                        "accel_y"
+                    )
+
+                val accelZ =
+                    leerSerie(
+                        json,
+                        "accel_z"
+                    )
+
+
+                ThingsBoardStats(
+
+                    bpm = bpm,
+
+                    gsr = gsr,
 
                     movimiento =
-                        leerSerie(
-                            json,
-                            "movimiento"
+                        calcularMovimiento(
+                            accelX = accelX,
+                            accelY = accelY,
+                            accelZ = accelZ
                         )
                 )
             }
         }
 
+
     // =========================================================
-    // LOGIN PÚBLICO DE THINGSBOARD
+    // OPCIONAL: ÚLTIMOS 7 DÍAS
     // =========================================================
 
-    private fun obtenerTokenPublico(): String {
+    suspend fun cargarUltimosSieteDias():
+            Result<ThingsBoardStats> {
+
+        val endTs =
+            System.currentTimeMillis()
+
+        val startTs =
+            endTs -
+                    7L *
+                    24L *
+                    60L *
+                    60L *
+                    1000L
+
+        return cargarIntervalo(
+            startTs = startTs,
+            endTs = endTs
+        )
+    }
+
+
+    // =========================================================
+    // TOKEN PÚBLICO DE THINGSBOARD
+    // =========================================================
+
+    private fun obtenerTokenPublico():
+            String {
 
         val url =
             URL(
@@ -120,6 +181,7 @@ object ThingsBoardRepository {
                 "application/json"
             )
 
+
             val body =
                 JSONObject()
                     .put(
@@ -127,6 +189,7 @@ object ThingsBoardRepository {
                         PUBLIC_ID
                     )
                     .toString()
+
 
             conexion.outputStream.use {
                     output ->
@@ -138,11 +201,16 @@ object ThingsBoardRepository {
                 )
             }
 
+
             val respuesta =
-                leerRespuesta(conexion)
+                leerRespuesta(
+                    conexion
+                )
 
             val json =
-                JSONObject(respuesta)
+                JSONObject(
+                    respuesta
+                )
 
             return json.getString(
                 "token"
@@ -153,6 +221,7 @@ object ThingsBoardRepository {
             conexion.disconnect()
         }
     }
+
 
     // =========================================================
     // DESCARGAR TELEMETRÍA
@@ -165,7 +234,12 @@ object ThingsBoardRepository {
     ): JSONObject {
 
         val keys =
-            "bpm,gsr_voltage,movimiento"
+            "bpm," +
+                    "gsr_voltage," +
+                    "accel_x," +
+                    "accel_y," +
+                    "accel_z"
+
 
         val direccion =
             "$BASE_URL/api/plugins/telemetry/" +
@@ -174,14 +248,17 @@ object ThingsBoardRepository {
                     "?keys=$keys" +
                     "&startTs=$startTs" +
                     "&endTs=$endTs" +
-                    "&limit=500" +
+                    "&limit=1000" +
                     "&agg=NONE" +
                     "&orderBy=DESC"
 
+
         val conexion =
-            URL(direccion)
-                .openConnection()
+            URL(
+                direccion
+            ).openConnection()
                     as HttpURLConnection
+
 
         try {
 
@@ -194,18 +271,24 @@ object ThingsBoardRepository {
             conexion.readTimeout =
                 15000
 
+
             conexion.setRequestProperty(
                 "Accept",
                 "application/json"
             )
+
 
             conexion.setRequestProperty(
                 "X-Authorization",
                 "Bearer $token"
             )
 
+
             val respuesta =
-                leerRespuesta(conexion)
+                leerRespuesta(
+                    conexion
+                )
+
 
             return JSONObject(
                 respuesta
@@ -217,8 +300,9 @@ object ThingsBoardRepository {
         }
     }
 
+
     // =========================================================
-    // LEER UNA SERIE DE THINGSBOARD
+    // LEER SERIE DE THINGSBOARD
     // =========================================================
 
     private fun leerSerie(
@@ -227,19 +311,26 @@ object ThingsBoardRepository {
     ): List<TelemetryPoint> {
 
         val array =
-            json.optJSONArray(key)
+            json.optJSONArray(
+                key
+            )
                 ?: return emptyList()
+
 
         val puntos =
             mutableListOf<TelemetryPoint>()
+
 
         for (
         i in 0 until array.length()
         ) {
 
             val elemento =
-                array.optJSONObject(i)
+                array.optJSONObject(
+                    i
+                )
                     ?: continue
+
 
             val ts =
                 elemento.optLong(
@@ -247,11 +338,15 @@ object ThingsBoardRepository {
                     -1L
                 )
 
+
             val value =
                 elemento
-                    .opt("value")
+                    .opt(
+                        "value"
+                    )
                     ?.toString()
                     ?.toFloatOrNull()
+
 
             if (
                 ts > 0 &&
@@ -260,6 +355,7 @@ object ThingsBoardRepository {
             ) {
 
                 puntos.add(
+
                     TelemetryPoint(
                         ts = ts,
                         value = value
@@ -268,24 +364,143 @@ object ThingsBoardRepository {
             }
         }
 
+
         return puntos
             .sortedBy {
                 it.ts
             }
     }
 
+
+    // =========================================================
+    // CALCULAR MOVIMIENTO DESDE EL IMU
+    // =========================================================
+
+    private fun calcularMovimiento(
+        accelX: List<TelemetryPoint>,
+        accelY: List<TelemetryPoint>,
+        accelZ: List<TelemetryPoint>
+    ): List<TelemetryPoint> {
+
+        if (
+            accelX.isEmpty() ||
+            accelY.isEmpty() ||
+            accelZ.isEmpty()
+        ) {
+
+            return emptyList()
+        }
+
+
+        // Agrupamos por segundo porque la Raspberry
+        // publica aproximadamente una muestra por segundo.
+
+        val xPorSegundo =
+            accelX.associateBy {
+                it.ts / 1000L
+            }
+
+        val yPorSegundo =
+            accelY.associateBy {
+                it.ts / 1000L
+            }
+
+        val zPorSegundo =
+            accelZ.associateBy {
+                it.ts / 1000L
+            }
+
+
+        val segundosComunes =
+            xPorSegundo.keys
+                .intersect(
+                    yPorSegundo.keys
+                )
+                .intersect(
+                    zPorSegundo.keys
+                )
+                .sorted()
+
+
+        return segundosComunes.mapNotNull {
+                segundo ->
+
+
+            val x =
+                xPorSegundo[
+                    segundo
+                ]?.value
+                    ?: return@mapNotNull null
+
+
+            val y =
+                yPorSegundo[
+                    segundo
+                ]?.value
+                    ?: return@mapNotNull null
+
+
+            val z =
+                zPorSegundo[
+                    segundo
+                ]?.value
+                    ?: return@mapNotNull null
+
+
+            // Misma ecuación usada en la analítica
+            // de la Raspberry.
+
+            val magnitud =
+                sqrt(
+                    x * x +
+                            y * y +
+                            z * z
+                )
+
+
+            val movimiento =
+                abs(
+                    magnitud - 1f
+                )
+
+
+            if (
+                !movimiento.isFinite()
+            ) {
+
+                null
+
+            } else {
+
+                TelemetryPoint(
+
+                    ts =
+                        segundo *
+                                1000L,
+
+                    value =
+                        movimiento
+                )
+            }
+        }
+    }
+
+
     // =========================================================
     // LEER RESPUESTA HTTP
     // =========================================================
 
     private fun leerRespuesta(
-        conexion: HttpURLConnection
+        conexion:
+        HttpURLConnection
     ): String {
 
         val codigo =
             conexion.responseCode
 
+
         val stream =
+
             if (
                 codigo in 200..299
             ) {
@@ -297,6 +512,7 @@ object ThingsBoardRepository {
                 conexion.errorStream
             }
 
+
         val texto =
             stream
                 ?.bufferedReader()
@@ -305,15 +521,18 @@ object ThingsBoardRepository {
                 }
                 .orEmpty()
 
+
         if (
             codigo !in 200..299
         ) {
 
             throw IllegalStateException(
+
                 "ThingsBoard respondió HTTP " +
                         "$codigo: $texto"
             )
         }
+
 
         return texto
     }
