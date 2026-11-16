@@ -1,3 +1,4 @@
+
 package com.example.refocus
 
 import androidx.compose.foundation.layout.Arrangement
@@ -41,60 +42,41 @@ fun HabitsScreen(
 ) {
     val uid = FirebaseAuth.getInstance().currentUser?.uid
 
-    var cargandoAnalitica by remember { mutableStateOf(true) }
-    var cargandoDigital by remember { mutableStateOf(true) }
-
-    var sesionesAnaliticas by remember {
-        mutableStateOf<List<AnalyticsSession>>(emptyList())
-    }
-
+    var cargando by remember { mutableStateOf(true) }
     var sesionesDigitales by remember {
         mutableStateOf<List<DigitalSession>>(emptyList())
     }
-
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uid) {
         if (uid == null) {
-            cargandoAnalitica = false
-            cargandoDigital = false
+            cargando = false
             error = "No se encontró el usuario."
-        } else {
-            AnalyticsRepository.cargarSesionesUsuario(
-                uid = uid,
-                onSuccess = {
-                    sesionesAnaliticas = it
-                    cargandoAnalitica = false
-                },
-                onError = {
-                    cargandoAnalitica = false
-                    error = "No se pudieron cargar todos tus hábitos."
-                }
-            )
-
-            AnalyticsRepository.cargarSesionesDigitalesUsuario(
-                uid = uid,
-                onSuccess = {
-                    sesionesDigitales = it
-                    cargandoDigital = false
-                },
-                onError = {
-                    cargandoDigital = false
-                    error = "No se pudieron cargar todos tus hábitos."
-                }
-            )
+            return@LaunchedEffect
         }
+
+        AnalyticsRepository.cargarSesionesDigitalesUsuario(
+            uid = uid,
+            onSuccess = { lista ->
+                sesionesDigitales = lista
+                cargando = false
+            },
+            onError = {
+                cargando = false
+                error = "No se pudieron cargar tus hábitos."
+            }
+        )
     }
 
-    val cargando = cargandoAnalitica || cargandoDigital
+    // Tendencias y distribución de sesiones.
     val inicioSemana = remember { inicioDeSemanaMillis() }
 
-    // Para tiempo/sesiones/cambios de app usamos el historial propio del usuario.
     val digitalesSemana = sesionesDigitales.filter {
         it.inicioMillis >= inicioSemana
     }
 
     val tiempoSemana = digitalesSemana.sumOf { it.duracionS }
+
     val interrupcionesSemana = digitalesSemana.sumOf {
         it.interrupcionesDigitales
     }
@@ -111,18 +93,16 @@ fun HabitsScreen(
         tiempoSemana / digitalesSemana.size
     }
 
-    // Las posibles distracciones fisiológicas vienen de la analítica de la Raspberry.
-    val analiticasSemana = sesionesAnaliticas.filter {
-        it.inicioMillis >= inicioSemana
-    }
+    // Días con al menos una sesión finalizada.
+    val diasEstudio = digitalesSemana.map { sesion ->
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = sesion.inicioMillis
+        }
+        "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+    }.distinct().size
 
-    val distraccionesSemana = analiticasSemana.sumOf {
-        it.nDistracciones
-    }
-
-    val momentoPreferido = calcularMomentoPreferidoDigital(
-        sesionesDigitales
-    )
+    val momentoPreferido =
+        calcularMomentoPreferidoDigital(sesionesDigitales)
 
     Surface(
         Modifier.fillMaxSize(),
@@ -142,7 +122,7 @@ fun HabitsScreen(
             )
 
             Text(
-                "Patrones simples a partir de tus sesiones.",
+                "Descubre cuándo y con qué frecuencia estudias.",
                 color = Color(0xFF686878)
             )
 
@@ -167,17 +147,14 @@ fun HabitsScreen(
                         }
                     }
 
-                    error != null &&
-                            sesionesDigitales.isEmpty() &&
-                            sesionesAnaliticas.isEmpty() -> {
+                    error != null -> {
                         Text(
                             error.orEmpty(),
                             color = Color(0xFF686878)
                         )
                     }
 
-                    sesionesDigitales.isEmpty() &&
-                            sesionesAnaliticas.isEmpty() -> {
+                    sesionesDigitales.isEmpty() -> {
                         Text(
                             "Completa algunas sesiones para empezar a ver tus hábitos.",
                             color = Color(0xFF686878)
@@ -185,12 +162,21 @@ fun HabitsScreen(
                     }
 
                     else -> {
+                        Text(
+                            "Esta semana",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             MetricCard(
-                                "Sesiones esta semana",
+                                "Sesiones completadas",
                                 digitalesSemana.size.toString(),
                                 Modifier.weight(1f)
                             )
@@ -209,31 +195,8 @@ fun HabitsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             MetricCard(
-                                "Cambios de app",
-                                interrupcionesSemana.toString(),
-                                Modifier.weight(1f)
-                            )
-
-                            MetricCard(
-                                "Promedio cambios/sesión",
-                                String.format(
-                                    Locale.getDefault(),
-                                    "%.1f",
-                                    promedioInterrupciones
-                                ),
-                                Modifier.weight(1f)
-                            )
-                        }
-
-                        Spacer(Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            MetricCard(
-                                "Posibles distracciones",
-                                distraccionesSemana.toString(),
+                                "Días de estudio",
+                                diasEstudio.toString(),
                                 Modifier.weight(1f)
                             )
 
@@ -244,16 +207,25 @@ fun HabitsScreen(
                             )
                         }
 
-                        Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(20.dp))
+
+                        Text(
+                            "Tus patrones",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1D427A)
+                        )
+
+                        Spacer(Modifier.height(10.dp))
 
                         HabitCard(
-                            title = "Uso del celular",
+                            title = "Uso del celular esta semana",
                             text = when {
                                 digitalesSemana.isEmpty() ->
                                     "Aún no tienes sesiones esta semana."
 
                                 interrupcionesSemana == 0 ->
-                                    "No registraste cambios hacia otras aplicaciones esta semana."
+                                    "No registraste cambios hacia otras aplicaciones durante tus sesiones."
 
                                 promedioInterrupciones < 2.0 ->
                                     "Cambias de aplicación pocas veces durante tus sesiones."
@@ -296,7 +268,9 @@ private fun HabitCard(
             containerColor = Color.White
         )
     ) {
-        Column(Modifier.padding(18.dp)) {
+        Column(
+            Modifier.padding(18.dp)
+        ) {
             Text(
                 title,
                 fontWeight = FontWeight.SemiBold,
@@ -351,9 +325,14 @@ private fun calcularMomentoPreferidoDigital(
     val mayor = maxOf(manana, tarde, noche)
 
     return when (mayor) {
-        manana -> "La mayoría de tus sesiones recientes han sido en la mañana."
-        tarde -> "La mayoría de tus sesiones recientes han sido en la tarde."
-        else -> "La mayoría de tus sesiones recientes han sido en la noche."
+        manana ->
+            "La mayoría de tus sesiones recientes han sido en la mañana."
+
+        tarde ->
+            "La mayoría de tus sesiones recientes han sido en la tarde."
+
+        else ->
+            "La mayoría de tus sesiones recientes han sido en la noche."
     }
 }
 
