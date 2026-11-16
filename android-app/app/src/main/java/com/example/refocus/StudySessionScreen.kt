@@ -85,11 +85,8 @@ fun StudySessionScreen(
 
             val raspberryConfirmoFin =
                 finalizando &&
-                        nuevoEstado.isNotBlank() &&
-                        nuevoEstado != "Sesión en curso" &&
-                        nuevoEstado != "Wearable desconectado" &&
-                        !nuevoEstado.startsWith("Sin conexión", ignoreCase = true)
-
+                        nuevoEstado == "Sesión finalizada"
+            
             if (raspberryConfirmoFin) {
                 finalizando = false
                 guardandoFirestore = true
@@ -296,3 +293,4 @@ fun StudySessionScreen(
         }
     }
 }
+
