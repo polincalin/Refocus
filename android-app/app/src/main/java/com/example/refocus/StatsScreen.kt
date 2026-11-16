@@ -1,3 +1,4 @@
+
 package com.example.refocus
 
 import androidx.compose.foundation.Canvas
@@ -210,10 +211,42 @@ fun StatsScreen(
 
                     else -> {
 
+
                         val ultimaDigital = sesionesDigitales.first()
 
-                        val ultimaAnalitica =
-                            sesionesAnaliticas.firstOrNull()
+// Margen para pequeñas diferencias de sincronización.
+                        val toleranciaMs = 30_000L
+
+                        val finDigital =
+                            ultimaDigital.inicioMillis +
+                                    ultimaDigital.duracionS * 1000L
+
+// Buscar la sesión analítica que corresponde
+// temporalmente a la última sesión digital.
+                        val ultimaAnalitica = sesionesAnaliticas
+                            .filter { analitica ->
+
+                                val finAnalitico =
+                                    analitica.inicioMillis +
+                                            analitica.duracionS * 1000L
+
+                                val diferenciaInicio = kotlin.math.abs(
+                                    analitica.inicioMillis - ultimaDigital.inicioMillis
+                                )
+
+                                val diferenciaFin = kotlin.math.abs(
+                                    finAnalitico - finDigital
+                                )
+
+                                diferenciaInicio <= toleranciaMs &&
+                                        diferenciaFin <= toleranciaMs
+                            }
+                            .minByOrNull { analitica ->
+                                kotlin.math.abs(
+                                    analitica.inicioMillis - ultimaDigital.inicioMillis
+                                )
+                            }
+
 
                         Text(
                             text = "Última sesión",
