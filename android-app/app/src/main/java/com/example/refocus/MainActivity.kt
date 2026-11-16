@@ -16,56 +16,105 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            ReFocusTheme {
-                var pantallaActual by remember { mutableStateOf("login") }
-                var duracionUltimaSesion by remember { mutableIntStateOf(0) }
+
+            ReFocusTheme(
+                darkTheme = false,
+                dynamicColor = false
+            ) {
+
+                var pantallaActual by remember {
+                    mutableStateOf("login")
+                }
+
+                var duracionUltimaSesion by remember {
+                    mutableIntStateOf(0)
+                }
 
                 when (pantallaActual) {
+
                     "login" -> LoginScreen(
-                        onRegisterClick = { pantallaActual = "registro" },
-                        onLoginSuccess = { pantallaActual = "home" }
+                        onRegisterClick = {
+                            pantallaActual = "registro"
+                        },
+                        onLoginSuccess = {
+                            pantallaActual = "home"
+                        }
                     )
 
                     "registro" -> RegisterScreen(
-                        onLoginClick = { pantallaActual = "login" }
+                        onLoginClick = {
+                            pantallaActual = "login"
+                        }
                     )
 
                     "home" -> HomeScreen(
-                        onStartStudySession = { pantallaActual = "study" },
-                        onStatsClick = { pantallaActual = "stats" },
-                        onHabitsClick = { pantallaActual = "habits" },
-                        onTipsClick = { pantallaActual = "tips" },
-                        onLogout = { pantallaActual = "login" }
+                        onStartStudySession = {
+                            pantallaActual = "study"
+                        },
+                        onStatsClick = {
+                            pantallaActual = "stats"
+                        },
+                        onHabitsClick = {
+                            pantallaActual = "habits"
+                        },
+                        onTipsClick = {
+                            pantallaActual = "tips"
+                        },
+                        onLogout = {
+                            pantallaActual = "login"
+                        }
                     )
 
                     "study" -> StudySessionScreen(
                         onFinishSession = { duracion ->
+
                             duracionUltimaSesion = duracion
+
                             pantallaActual = "summary"
                         }
                     )
 
                     "summary" -> SessionSummaryScreen(
                         duracionSegundos = duracionUltimaSesion,
-                        onBackHome = { pantallaActual = "home" }
+                        onBackHome = {
+                            pantallaActual = "home"
+                        }
                     )
 
                     "stats" -> StatsScreen(
-                        onHomeClick = { pantallaActual = "home" },
-                        onHabitsClick = { pantallaActual = "habits" },
-                        onTipsClick = { pantallaActual = "tips" }
+                        onHomeClick = {
+                            pantallaActual = "home"
+                        },
+                        onHabitsClick = {
+                            pantallaActual = "habits"
+                        },
+                        onTipsClick = {
+                            pantallaActual = "tips"
+                        }
                     )
 
                     "habits" -> HabitsScreen(
-                        onHomeClick = { pantallaActual = "home" },
-                        onStatsClick = { pantallaActual = "stats" },
-                        onTipsClick = { pantallaActual = "tips" }
+                        onHomeClick = {
+                            pantallaActual = "home"
+                        },
+                        onStatsClick = {
+                            pantallaActual = "stats"
+                        },
+                        onTipsClick = {
+                            pantallaActual = "tips"
+                        }
                     )
 
                     "tips" -> TipsScreen(
-                        onHomeClick = { pantallaActual = "home" },
-                        onStatsClick = { pantallaActual = "stats" },
-                        onHabitsClick = { pantallaActual = "habits" }
+                        onHomeClick = {
+                            pantallaActual = "home"
+                        },
+                        onStatsClick = {
+                            pantallaActual = "stats"
+                        },
+                        onHabitsClick = {
+                            pantallaActual = "habits"
+                        }
                     )
                 }
             }

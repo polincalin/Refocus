@@ -81,9 +81,10 @@ dependencies {
     // JETPACK COMPOSE
     // -----------------------------
 
-    implementation(
-        platform(libs.androidx.compose.bom)
-    )
+    val composeBom = platform(libs.androidx.compose.bom)
+
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
 
     implementation(
         libs.androidx.activity.compose

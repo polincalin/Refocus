@@ -66,6 +66,19 @@ fun RegisterScreen(
         FirebaseAuth.getInstance()
     }
 
+    val coloresCampo = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color(0xFF1D427A),
+        unfocusedTextColor = Color(0xFF1D427A),
+
+        focusedLabelColor = Color(0xFF6755CE),
+        unfocusedLabelColor = Color(0xFF686878),
+
+        focusedBorderColor = Color(0xFF6755CE),
+        unfocusedBorderColor = Color(0xFF9A9AA3),
+
+        cursorColor = Color(0xFF6755CE)
+    )
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFFF7F5FC)
@@ -113,6 +126,7 @@ fun RegisterScreen(
                 modifier = Modifier.height(28.dp)
             )
 
+            // NOMBRE
             OutlinedTextField(
                 value = nombre,
                 onValueChange = {
@@ -124,17 +138,14 @@ fun RegisterScreen(
                 singleLine = true,
                 enabled = !cargando,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6755CE),
-                    focusedLabelColor = Color(0xFF6755CE),
-                    cursorColor = Color(0xFF6755CE)
-                )
+                colors = coloresCampo
             )
 
             Spacer(
                 modifier = Modifier.height(16.dp)
             )
 
+            // CORREO
             OutlinedTextField(
                 value = email,
                 onValueChange = {
@@ -149,17 +160,14 @@ fun RegisterScreen(
                 singleLine = true,
                 enabled = !cargando,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6755CE),
-                    focusedLabelColor = Color(0xFF6755CE),
-                    cursorColor = Color(0xFF6755CE)
-                )
+                colors = coloresCampo
             )
 
             Spacer(
                 modifier = Modifier.height(16.dp)
             )
 
+            // CONTRASEÑA
             OutlinedTextField(
                 value = password,
                 onValueChange = {
@@ -169,20 +177,20 @@ fun RegisterScreen(
                     Text("Contraseña")
                 },
                 visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password
+                ),
                 singleLine = true,
                 enabled = !cargando,
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6755CE),
-                    focusedLabelColor = Color(0xFF6755CE),
-                    cursorColor = Color(0xFF6755CE)
-                )
+                colors = coloresCampo
             )
 
             Spacer(
                 modifier = Modifier.height(28.dp)
             )
 
+            // CREAR CUENTA
             Button(
                 onClick = {
 
@@ -244,11 +252,8 @@ fun RegisterScreen(
                                             Toast.LENGTH_SHORT
                                         ).show()
 
-                                        // Por ahora cerramos sesión
-                                        // porque todavía no tenemos Home.
                                         auth.signOut()
 
-                                        // Volvemos al Login.
                                         onLoginClick()
                                     }
 
